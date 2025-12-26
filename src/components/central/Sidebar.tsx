@@ -103,17 +103,15 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        {userRole === 'consultant' && (
-          <button
-            onClick={onOpenUpload}
-            className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-foreground hover:bg-card border border-dashed border-border hover:border-primary hover:text-primary transition-all shadow-sm group bg-card/50 hover:shadow-lg"
-          >
-            <div className="p-1.5 bg-muted rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-              <Upload size={16} strokeWidth={2} />
-            </div>
-            <span>Upload Planilha</span>
-          </button>
-        )}
+        <button
+          onClick={onOpenUpload}
+          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-foreground hover:bg-card border border-dashed border-border hover:border-primary hover:text-primary transition-all shadow-sm group bg-card/50 hover:shadow-lg"
+        >
+          <div className="p-1.5 bg-muted rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors">
+            <Upload size={16} strokeWidth={2} />
+          </div>
+          <span>Upload Planilha</span>
+        </button>
 
         <p className="text-[9px] text-muted-foreground/50 text-center pt-1 font-mono">v2.0 • CI</p>
       </div>
