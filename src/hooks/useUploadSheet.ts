@@ -61,26 +61,47 @@ const useUploadSheet = () => {
   const { toast } = useToast();
 
   // Parser para aba "Geral" - extrai faturamento mensal por ano
-  // Estrutura real da planilha Geral:
-  // Linha 1 (índice 0): Título/Cabeçalho
+  // Estrutura real da planilha Geral (baseada no screenshot):
+  // Linha 1 (índice 0): Título/Cabeçalho vazio ou "Crescimento % 2024 x 2025"
   // Linha 2 (índice 1): Anos (2022, 2023, 2024, 2025) nas colunas B, C, D, E
   // Linhas 3-14 (índice 2-13): Meses com faturamento
   // Coluna A: Nomes dos meses
-  // Colunas B-E: Faturamento por ano
-  // Coluna K (índice 10): Início mentoria
+  // Colunas B-E: Faturamento por ano (B=2022, C=2023, D=2024, E=2025)
+  // Coluna F (índice 5): Crescimento % 2024 x 2025
+  // Coluna G (índice 6): Meta prevista 2025
+  // Coluna K (índice 10): Início mentoria (K3 contém a data)
   const parseGeneralSheet = (
     worksheet: XLSX.WorkSheet,
     cutoffMonth: number,
     cutoffYear: number
-  ): { historicalData: MonthlyData[]; currentYearData: MonthlyData[]; yearsAvailable: number[]; mentorshipStartDate?: string } => {
+  ): { 
+    historicalData: MonthlyData[]; 
+    currentYearData: MonthlyData[]; 
+    yearsAvailable: number[]; 
+    mentorshipStartDate?: string;
+    monthlyGoals: { month: string; goal: number }[];
+  } => {
     const jsonData = XLSX.utils.sheet_to_json(worksheet, { header: 1, defval: null }) as any[][];
     
     console.log("[parseGeneralSheet] Total de linhas:", jsonData.length);
+    console.log("[parseGeneralSheet] Primeiras 5 linhas:", jsonData.slice(0, 5));
     
     const historicalData: MonthlyData[] = [];
     const currentYearData: MonthlyData[] = [];
     const yearsAvailable: number[] = [];
+    const monthlyGoals: { month: string; goal: number }[] = [];
     let mentorshipStartDate: string | undefined;
+    
+    // Mapeamento fixo de colunas baseado no layout real:
+    // B(1)=2022, C(2)=2023, D(3)=2024, E(4)=2025
+    // G(6)=Meta prevista 2025
+    // K(10)=Início mentoria
+    const COL_YEAR_2022 = 1; // Coluna B
+    const COL_YEAR_2023 = 2; // Coluna C
+    const COL_YEAR_2024 = 3; // Coluna D
+    const COL_YEAR_2025 = 4; // Coluna E
+    const COL_META_2025 = 6; // Coluna G - Meta prevista 2025
+    const COL_MENTORIA = 10; // Coluna K
     
     // Detectar linha com anos (procurar linha que contém anos como 2022, 2023, 2024, 2025)
     let yearRowIndex = -1;
@@ -88,7 +109,9 @@ const useUploadSheet = () => {
     
     for (let rowIdx = 0; rowIdx < Math.min(jsonData.length, 5); rowIdx++) {
       const row = jsonData[rowIdx] || [];
-      for (let col = 1; col < Math.min(row.length, 10); col++) {
+      let foundYears = 0;
+      
+      for (let col = 1; col <= 5; col++) {
         const cellValue = row[col];
         if (typeof cellValue === "number" && cellValue >= 2020 && cellValue <= 2030) {
           if (yearRowIndex === -1) yearRowIndex = rowIdx;
@@ -96,46 +119,71 @@ const useUploadSheet = () => {
           if (!yearsAvailable.includes(cellValue)) {
             yearsAvailable.push(cellValue);
           }
+          foundYears++;
         }
       }
-      if (yearColumns.length > 0) break;
+      if (foundYears >= 2) break; // Encontrou a linha de anos
+    }
+    
+    // Se não detectou automaticamente, usar mapeamento fixo
+    if (yearColumns.length === 0) {
+      console.log("[parseGeneralSheet] Usando mapeamento fixo de colunas");
+      yearRowIndex = 1;
+      yearColumns.push(
+        { col: COL_YEAR_2022, year: 2022 },
+        { col: COL_YEAR_2023, year: 2023 },
+        { col: COL_YEAR_2024, year: 2024 },
+        { col: COL_YEAR_2025, year: 2025 }
+      );
+      yearsAvailable.push(2022, 2023, 2024, 2025);
     }
     
     console.log("[parseGeneralSheet] Linha de anos encontrada:", yearRowIndex + 1);
     console.log("[parseGeneralSheet] Anos detectados:", yearsAvailable);
+    console.log("[parseGeneralSheet] Colunas de anos:", yearColumns);
     
-    // Procurar "Início Mentoria" na planilha
-    for (let row = 0; row < Math.min(jsonData.length, 20); row++) {
-      for (let col = 0; col < Math.min((jsonData[row] || []).length, 15); col++) {
-        const cell = jsonData[row]?.[col];
-        if (typeof cell === "string" && cell.toLowerCase().includes("início mentoria")) {
-          // A data deve estar na célula adjacente ou abaixo
-          const dateCell = jsonData[row]?.[col + 1] || jsonData[row + 1]?.[col];
-          if (dateCell) {
-            if (typeof dateCell === "number") {
-              // Converter número de data Excel
-              const date = XLSX.SSF.parse_date_code(dateCell);
-              if (date) {
-                mentorshipStartDate = `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
-                console.log("[parseGeneralSheet] Data de mentoria encontrada:", mentorshipStartDate);
-              }
-            } else if (typeof dateCell === "string") {
-              mentorshipStartDate = dateCell;
-              console.log("[parseGeneralSheet] Data de mentoria (string):", mentorshipStartDate);
-            }
-          }
+    // Extrair data de início de mentoria da célula K3 (índice [2][10])
+    const mentoriaRow = 2; // Linha 3 (índice 2)
+    const mentoriaCell = jsonData[mentoriaRow]?.[COL_MENTORIA];
+    console.log("[parseGeneralSheet] Célula K3 (mentoria):", mentoriaCell);
+    
+    if (mentoriaCell) {
+      if (typeof mentoriaCell === "number") {
+        // Converter número de data Excel
+        const date = XLSX.SSF.parse_date_code(mentoriaCell);
+        if (date) {
+          mentorshipStartDate = `${date.y}-${String(date.m).padStart(2, "0")}-${String(date.d).padStart(2, "0")}`;
+          console.log("[parseGeneralSheet] Data de mentoria encontrada:", mentorshipStartDate);
+        }
+      } else if (typeof mentoriaCell === "string" && mentoriaCell.trim()) {
+        // Tentar parsear string de data (dd/mm/yyyy ou similar)
+        const dateMatch = mentoriaCell.match(/(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{2,4})/);
+        if (dateMatch) {
+          const day = dateMatch[1].padStart(2, "0");
+          const month = dateMatch[2].padStart(2, "0");
+          let year = dateMatch[3];
+          if (year.length === 2) year = "20" + year;
+          mentorshipStartDate = `${year}-${month}-${day}`;
+          console.log("[parseGeneralSheet] Data de mentoria (string parsed):", mentorshipStartDate);
+        } else {
+          mentorshipStartDate = mentoriaCell.trim();
+          console.log("[parseGeneralSheet] Data de mentoria (string):", mentorshipStartDate);
         }
       }
     }
     
     // Extrair faturamento por mês - linhas após a linha de anos
     const dataStartRow = yearRowIndex + 1;
+    console.log("[parseGeneralSheet] Dados começam na linha:", dataStartRow + 1);
     
-    for (let rowIdx = dataStartRow; rowIdx < jsonData.length; rowIdx++) {
+    for (let rowIdx = dataStartRow; rowIdx < Math.min(jsonData.length, dataStartRow + 14); rowIdx++) {
       const row = jsonData[rowIdx];
       if (!row || !row[0]) continue;
       
       const monthCell = String(row[0]).trim();
+      
+      // Ignorar linhas de total ou vazias
+      if (monthCell.toLowerCase() === "total" || monthCell.toLowerCase() === "") continue;
       
       // Tentar encontrar o índice do mês
       let monthIndex = monthNamesLong.findIndex(
@@ -149,7 +197,26 @@ const useUploadSheet = () => {
         );
       }
       
-      if (monthIndex === -1) continue;
+      if (monthIndex === -1) {
+        console.log("[parseGeneralSheet] Mês não reconhecido:", monthCell);
+        continue;
+      }
+      
+      const monthName = monthNames[monthIndex];
+      
+      // Extrair meta do mês (coluna G para 2025)
+      const metaValue = row[COL_META_2025];
+      let goal = 0;
+      if (typeof metaValue === "number") {
+        goal = metaValue;
+      } else if (typeof metaValue === "string") {
+        const cleanValue = metaValue.replace(/[R$\s.]/g, "").replace(",", ".");
+        goal = parseFloat(cleanValue) || 0;
+      }
+      
+      if (goal > 0) {
+        monthlyGoals.push({ month: monthName, goal });
+      }
       
       // Para cada ano detectado, extrair o valor
       for (const { col, year } of yearColumns) {
@@ -164,22 +231,28 @@ const useUploadSheet = () => {
           revenue = parseFloat(cleanValue) || 0;
         }
         
-        // Aplicar corte: ignorar meses após o mês selecionado
-        if (!isBeforeOrEqual(monthIndex + 1, year, cutoffMonth, cutoffYear)) {
+        // Aplicar corte apenas para o ano selecionado
+        // Para anos históricos, manter todos os meses
+        if (year === cutoffYear && !isBeforeOrEqual(monthIndex + 1, year, cutoffMonth, cutoffYear)) {
+          console.log(`[parseGeneralSheet] Ignorando ${monthName}/${year} (após cutoff ${cutoffMonth}/${cutoffYear})`);
           continue;
         }
         
+        // Pegar a meta correspondente (só existe para 2025)
+        const monthGoal = year === 2025 ? (monthlyGoals.find(g => g.month === monthName)?.goal || 0) : 0;
+        
         const monthData: MonthlyData = {
-          month: monthNames[monthIndex],
+          month: monthName,
           year,
           revenue: revenue || 0,
-          goal: 0, // Meta será extraída de outra coluna se existir
+          goal: monthGoal,
         };
         
-        // Determinar se é ano atual ou histórico
-        const currentYear = new Date().getFullYear();
-        if (year === currentYear) {
+        // Determinar se é ano selecionado (current) ou histórico
+        // Usar o ano selecionado no upload, não o ano do sistema
+        if (year === cutoffYear) {
           currentYearData.push(monthData);
+          console.log(`[parseGeneralSheet] Ano atual: ${monthName}/${year} = R$${revenue}, Meta: R$${monthGoal}`);
         } else {
           historicalData.push(monthData);
         }
@@ -188,10 +261,11 @@ const useUploadSheet = () => {
     
     console.log("[parseGeneralSheet] Dados históricos:", historicalData.length, "registros");
     console.log("[parseGeneralSheet] Dados ano atual:", currentYearData.length, "registros");
+    console.log("[parseGeneralSheet] Metas mensais:", monthlyGoals);
     
     yearsAvailable.sort();
     
-    return { historicalData, currentYearData, yearsAvailable, mentorshipStartDate };
+    return { historicalData, currentYearData, yearsAvailable, mentorshipStartDate, monthlyGoals };
   };
 
   // Parser para aba mensal (ex: Out-25) - extrai equipe
@@ -340,14 +414,30 @@ const useUploadSheet = () => {
   ): DashboardData["kpis"] => {
     const currentMonth = monthNamesLong[cutoffMonth - 1];
     
+    // Soma das metas e receitas do ano atual (até o mês de cutoff)
     const annualGoal = currentYearData.reduce((sum, m) => sum + m.goal, 0);
     const annualRealized = currentYearData.reduce((sum, m) => sum + m.revenue, 0);
     
-    // Calcular crescimento em relação ao ano anterior
+    console.log("[calculateKPIs] Meta anual:", annualGoal);
+    console.log("[calculateKPIs] Receita anual realizada:", annualRealized);
+    console.log("[calculateKPIs] Dados do ano atual:", currentYearData);
+    
+    // Calcular crescimento em relação ao ano anterior (mesmo período)
     const lastYear = cutoffYear - 1;
-    const lastYearData = historicalData.filter((m) => m.year === lastYear);
+    
+    // Filtrar dados do ano anterior apenas para os mesmos meses do ano atual
+    const currentYearMonths = currentYearData.map(m => m.month);
+    const lastYearData = historicalData.filter(
+      (m) => m.year === lastYear && currentYearMonths.includes(m.month)
+    );
+    
     const lastYearTotal = lastYearData.reduce((sum, m) => sum + m.revenue, 0);
-    const lastYearGrowth = lastYearTotal > 0 ? ((annualRealized - lastYearTotal) / lastYearTotal) * 100 : 0;
+    const lastYearGrowth = lastYearTotal > 0 
+      ? ((annualRealized - lastYearTotal) / lastYearTotal) * 100 
+      : 0;
+    
+    console.log(`[calculateKPIs] Ano anterior (${lastYear}):`, lastYearTotal);
+    console.log(`[calculateKPIs] Crescimento vs ${lastYear}:`, lastYearGrowth.toFixed(1) + "%");
     
     // Calcular crescimento pós-mentoria
     let mentorshipGrowth = 0;
@@ -356,19 +446,33 @@ const useUploadSheet = () => {
       const mentorshipYear = mentorshipDate.getFullYear();
       const mentorshipMonth = mentorshipDate.getMonth() + 1;
       
-      // Faturamento pré-mentoria (12 meses anteriores)
+      console.log("[calculateKPIs] Data de mentoria:", mentorshipStartDate, "->", mentorshipMonth + "/" + mentorshipYear);
+      
+      // Faturamento pré e pós mentoria
       const allData = [...historicalData, ...currentYearData];
       let preMentorshipRevenue = 0;
       let postMentorshipRevenue = 0;
       
       for (const monthData of allData) {
         const monthIndex = monthNames.indexOf(monthData.month) + 1;
-        if (isBeforeOrEqual(monthIndex, monthData.year, mentorshipMonth, mentorshipYear)) {
+        
+        // Antes da mentoria: comparar ano/mês
+        const isBeforeMentorship = monthData.year < mentorshipYear || 
+          (monthData.year === mentorshipYear && monthIndex < mentorshipMonth);
+        
+        // Após a mentoria: até o cutoff
+        const isAfterMentorship = !isBeforeMentorship && 
+          isBeforeOrEqual(monthIndex, monthData.year, cutoffMonth, cutoffYear);
+        
+        if (isBeforeMentorship) {
           preMentorshipRevenue += monthData.revenue;
-        } else if (isBeforeOrEqual(monthIndex, monthData.year, cutoffMonth, cutoffYear)) {
+        } else if (isAfterMentorship) {
           postMentorshipRevenue += monthData.revenue;
         }
       }
+      
+      console.log("[calculateKPIs] Receita pré-mentoria:", preMentorshipRevenue);
+      console.log("[calculateKPIs] Receita pós-mentoria:", postMentorshipRevenue);
       
       if (preMentorshipRevenue > 0) {
         mentorshipGrowth = ((postMentorshipRevenue - preMentorshipRevenue) / preMentorshipRevenue) * 100;
@@ -378,7 +482,7 @@ const useUploadSheet = () => {
     const totalSalesCount = team.reduce((sum, t) => sum + t.totalSalesCount, 0);
     const activeCustomers = team.filter((t) => t.active).length * 50;
     
-    return {
+    const kpis = {
       annualGoal,
       annualRealized,
       lastYearGrowth: Math.round(lastYearGrowth * 10) / 10,
@@ -391,6 +495,9 @@ const useUploadSheet = () => {
       activeCustomers,
       totalSalesCount,
     };
+    
+    console.log("[calculateKPIs] KPIs calculados:", kpis);
+    return kpis;
   };
 
   const processFile = async (file: File, config: UploadConfig): Promise<UploadResult> => {

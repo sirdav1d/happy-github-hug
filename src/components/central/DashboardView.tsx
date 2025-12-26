@@ -53,20 +53,54 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
     return { projection, status, gap, dailyAvg };
   }, [currentMonthData]);
 
+  // Derivar anos dinamicamente dos dados disponíveis
+  const availableYears = useMemo(() => {
+    const years = new Set<number>();
+    data.historicalData.forEach(d => years.add(d.year));
+    data.currentYearData.forEach(d => years.add(d.year));
+    if (data.yearsAvailable) {
+      data.yearsAvailable.forEach(y => years.add(y));
+    }
+    return Array.from(years).sort();
+  }, [data]);
+
+  // Determinar o ano selecionado e o ano anterior
+  const selectedYear = useMemo(() => {
+    if (data.currentYearData.length > 0) {
+      return data.currentYearData[0].year;
+    }
+    return new Date().getFullYear();
+  }, [data]);
+
+  const lastYear = selectedYear - 1;
+
   const chartData = useMemo(() => {
     switch (period) {
       case 'annual':
-        return [2022, 2023, 2024, 2025].map(year => {
-          let totalRevenue = (year === 2025) ? data.currentYearData.reduce((acc, curr) => acc + curr.revenue, 0) : data.historicalData.filter(d => d.year === year).reduce((acc, curr) => acc + curr.revenue, 0);
-          return { name: year.toString(), revenue: totalRevenue, goal: year === 2025 ? data.currentYearData.reduce((acc, curr) => acc + curr.goal, 0) : totalRevenue * 1.1 };
+        // Usar anos disponíveis dinamicamente
+        return availableYears.map(year => {
+          const isCurrentYear = year === selectedYear;
+          const yearData = isCurrentYear 
+            ? data.currentYearData 
+            : data.historicalData.filter(d => d.year === year);
+          
+          const totalRevenue = yearData.reduce((acc, curr) => acc + curr.revenue, 0);
+          const totalGoal = yearData.reduce((acc, curr) => acc + curr.goal, 0);
+          
+          return { 
+            name: year.toString(), 
+            revenue: totalRevenue, 
+            goal: totalGoal > 0 ? totalGoal : totalRevenue * 1.1 
+          };
         });
       default:
         return data.currentYearData.map(d => {
-          const lastYearMonth = data.historicalData.find(h => h.year === 2024 && h.month === d.month);
+          // Usar lastYear dinâmico em vez de hardcoded 2024
+          const lastYearMonth = data.historicalData.find(h => h.year === lastYear && h.month === d.month);
           return { name: d.month, revenue: d.revenue, goal: d.goal, lastYear: lastYearMonth?.revenue || 0 };
         });
     }
-  }, [period, data]);
+  }, [period, data, availableYears, selectedYear, lastYear]);
 
   return (
     <div className="space-y-8 animate-fade-in">
@@ -110,9 +144,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           </div>
           <div className="mt-6 flex items-center gap-2">
             <span className="flex items-center gap-1 text-sm font-semibold text-green-600 dark:text-green-400 bg-green-500/10 px-2 py-1 rounded-lg">
-              <TrendingUp size={14} />+<AnimatedCounter value={data.kpis.lastYearGrowth} formatter={(v) => v.toFixed(1)} />%
+              <TrendingUp size={14} />{data.kpis.lastYearGrowth >= 0 ? '+' : ''}<AnimatedCounter value={data.kpis.lastYearGrowth} formatter={(v) => v.toFixed(1)} />%
             </span>
-            <span className="text-xs text-muted-foreground">vs ano anterior</span>
+            <span className="text-xs text-muted-foreground">vs {lastYear}</span>
           </div>
         </div>
 
