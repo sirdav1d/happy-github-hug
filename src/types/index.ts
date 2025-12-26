@@ -5,6 +5,13 @@ export interface MonthlyData {
   goal: number;
 }
 
+export interface YearlyRevenue {
+  year: number;
+  months: MonthlyData[];
+  totalRevenue: number;
+  totalGoal: number;
+}
+
 export interface SalespersonWeekly {
   week: number;
   revenue: number;
@@ -59,6 +66,18 @@ export interface DashboardData {
   historicalData: MonthlyData[];
   currentYearData: MonthlyData[];
   team: Salesperson[];
+  // Novos campos para o sistema de upload atualizado
+  mentorshipStartDate?: string;
+  yearsAvailable?: number[];
+  selectedMonth?: string;
+  lastUploadDate?: string;
+  yearlyData?: YearlyRevenue[];
+}
+
+export interface UploadConfig {
+  selectedMonth: number; // 1-12
+  selectedYear: number;
+  replaceAllData: boolean;
 }
 
 export type ViewState =

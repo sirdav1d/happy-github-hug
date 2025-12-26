@@ -60,9 +60,13 @@ export type Database = {
           historical_data: Json
           id: string
           kpis: Json
+          last_upload_date: string | null
+          mentorship_start_date: string | null
+          selected_month: string | null
           team: Json
           updated_at: string
           user_id: string
+          years_available: number[] | null
         }
         Insert: {
           app_settings?: Json | null
@@ -74,9 +78,13 @@ export type Database = {
           historical_data?: Json
           id?: string
           kpis?: Json
+          last_upload_date?: string | null
+          mentorship_start_date?: string | null
+          selected_month?: string | null
           team?: Json
           updated_at?: string
           user_id: string
+          years_available?: number[] | null
         }
         Update: {
           app_settings?: Json | null
@@ -88,9 +96,13 @@ export type Database = {
           historical_data?: Json
           id?: string
           kpis?: Json
+          last_upload_date?: string | null
+          mentorship_start_date?: string | null
+          selected_month?: string | null
           team?: Json
           updated_at?: string
           user_id?: string
+          years_available?: number[] | null
         }
         Relationships: [
           {
