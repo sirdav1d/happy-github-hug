@@ -14,6 +14,8 @@ import InsightsView from "@/components/central/InsightsView";
 import SettingsView from "@/components/central/SettingsView";
 import Sidebar from "@/components/central/Sidebar";
 import ChatAssistant from "@/components/central/ChatAssistant";
+import UploadModal from "@/components/central/UploadModal";
+import useUploadSheet from "@/hooks/useUploadSheet";
 import { DashboardData, ViewState } from "@/types";
 
 const queryClient = new QueryClient();
@@ -113,10 +115,11 @@ const demoData: DashboardData = {
 };
 
 const AuthenticatedApp = () => {
-  const { userProfile } = useAuth();
+  const { userProfile, user } = useAuth();
   const [currentView, setCurrentView] = useState<ViewState>("dashboard");
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const { processFile, saveToDatabase, isProcessing, processedData, reset } = useUploadSheet();
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
@@ -124,6 +127,15 @@ const AuthenticatedApp = () => {
 
   const handleToggleTheme = () => {
     setIsDarkMode(!isDarkMode);
+  };
+
+  const handleUploadSuccess = async () => {
+    if (user && processedData) {
+      await saveToDatabase(user.id);
+      reset();
+      setShowUploadModal(false);
+      // Future: Reload dashboard data from database
+    }
   };
 
   const renderCurrentView = () => {
@@ -201,6 +213,17 @@ const AuthenticatedApp = () => {
       </main>
       
       <ChatAssistant data={demoData} />
+      
+      <UploadModal
+        isOpen={showUploadModal}
+        onClose={() => {
+          setShowUploadModal(false);
+          reset();
+        }}
+        onUploadSuccess={handleUploadSuccess}
+        onFileProcess={processFile}
+        isProcessing={isProcessing}
+      />
     </div>
   );
 };
