@@ -16,11 +16,12 @@ import Sidebar from "@/components/central/Sidebar";
 import ChatAssistant from "@/components/central/ChatAssistant";
 import UploadModal from "@/components/central/UploadModal";
 import useUploadSheet from "@/hooks/useUploadSheet";
-import { DashboardData, ViewState } from "@/types";
+import useDashboardData from "@/hooks/useDashboardData";
+import { DashboardData, ViewState, UploadConfig } from "@/types";
 
 const queryClient = new QueryClient();
 
-// Dados de demonstração
+// Dados de demonstração (usado quando não há dados no banco)
 const demoData: DashboardData = {
   companyName: "Empresa Demo",
   businessSegment: "Varejo",
@@ -119,7 +120,8 @@ const AuthenticatedApp = () => {
   const [currentView, setCurrentView] = useState<ViewState>("dashboard");
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
-  const { processFile, saveToDatabase, isProcessing, processedData, reset } = useUploadSheet();
+  const { processFile, isProcessing, processedData, reset } = useUploadSheet();
+  const { dashboardData, isLoading: isLoadingData, saveData, mergeData, fetchData } = useDashboardData(user?.id);
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
@@ -129,34 +131,66 @@ const AuthenticatedApp = () => {
     setIsDarkMode(!isDarkMode);
   };
 
-  const handleUploadSuccess = async () => {
-    if (user && processedData) {
-      await saveToDatabase(user.id);
-      reset();
-      setShowUploadModal(false);
-      // Future: Reload dashboard data from database
+  const handleUploadSuccess = async (data: any, config: UploadConfig) => {
+    if (!user) return;
+
+    const dataToSave: Partial<DashboardData> = {
+      kpis: data.kpis,
+      historicalData: data.historicalData,
+      currentYearData: data.currentYearData,
+      team: data.team,
+      yearsAvailable: data.yearsAvailable,
+      selectedMonth: data.selectedMonth,
+      mentorshipStartDate: data.mentorshipStartDate,
+    };
+
+    if (config.replaceAllData) {
+      await saveData(dataToSave, true);
+    } else {
+      await mergeData(dataToSave);
     }
+
+    reset();
+    setShowUploadModal(false);
+    await fetchData();
   };
 
+  const handleFileProcess = async (file: File, config: UploadConfig) => {
+    return processFile(file, config);
+  };
+
+  // Usar dados do banco ou demoData se não houver dados
+  const displayData = dashboardData || demoData;
+
   const renderCurrentView = () => {
+    if (isLoadingData) {
+      return (
+        <div className="flex items-center justify-center h-full">
+          <div className="text-primary animate-pulse font-mono tracking-widest text-lg">
+            Carregando dados...
+          </div>
+        </div>
+      );
+    }
+
     switch (currentView) {
       case "dashboard":
-        return <DashboardView data={demoData} />;
+        return <DashboardView data={displayData} />;
       case "team":
-        return <TeamView team={demoData.team} monthlyGoal={200000} />;
+        return <TeamView team={displayData.team} monthlyGoal={200000} />;
       case "pgv":
-        return <PGVView data={demoData} />;
+        return <PGVView data={displayData} />;
       case "seasonality":
         return (
           <SeasonalityView
-            historicalData={demoData.historicalData}
-            currentYearData={demoData.currentYearData}
+            historicalData={displayData.historicalData}
+            currentYearData={displayData.currentYearData}
           />
         );
       case "insights":
-        return <InsightsView data={demoData} />;
+        return <InsightsView data={displayData} />;
       case "settings":
-        return <SettingsView data={demoData} />;
+        return <SettingsView data={displayData} />;
       case "ai-summary":
         return (
           <div className="p-8">
@@ -193,7 +227,7 @@ const AuthenticatedApp = () => {
           </div>
         );
       default:
-        return <DashboardView data={demoData} />;
+        return <DashboardView data={displayData} />;
     }
   };
 
@@ -212,7 +246,7 @@ const AuthenticatedApp = () => {
         {renderCurrentView()}
       </main>
       
-      <ChatAssistant data={demoData} />
+      <ChatAssistant data={displayData} />
       
       <UploadModal
         isOpen={showUploadModal}
@@ -221,7 +255,7 @@ const AuthenticatedApp = () => {
           reset();
         }}
         onUploadSuccess={handleUploadSuccess}
-        onFileProcess={processFile}
+        onFileProcess={handleFileProcess}
         isProcessing={isProcessing}
       />
     </div>
