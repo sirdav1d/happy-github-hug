@@ -2,3 +2,6 @@ project_id = "bqoghpzvluixuddaerwk"
 
 [functions.parse-sheet]
 verify_jwt = false
+
+[functions.ai-insights]
+verify_jwt = false
