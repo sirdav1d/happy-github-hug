@@ -15,6 +15,7 @@ interface PulseCardProps {
   insights: AIInsights | null;
   isLoading: boolean;
   onRefresh: () => void;
+  variant?: 'card' | 'banner';
 }
 
 const statusConfig = {
@@ -48,11 +49,121 @@ const statusConfig = {
   },
 };
 
-const PulseCard: React.FC<PulseCardProps> = ({ insights, isLoading, onRefresh }) => {
+const PulseCard: React.FC<PulseCardProps> = ({ insights, isLoading, onRefresh, variant = 'card' }) => {
   const status = insights?.healthStatus || 'good';
   const config = statusConfig[status];
   const StatusIcon = config.icon;
 
+  // Banner variant - horizontal layout
+  if (variant === 'banner') {
+    return (
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className={`relative overflow-hidden rounded-2xl p-4 md:p-5 bg-gradient-to-r ${config.gradient} text-white shadow-xl ${config.glow}`}
+      >
+        {/* Animated background elements */}
+        <div className="absolute inset-0 overflow-hidden">
+          <div className="absolute -top-10 -right-10 w-32 h-32 bg-white/10 rounded-full blur-3xl animate-pulse" />
+          <div className="absolute -bottom-10 -left-10 w-24 h-24 bg-white/5 rounded-full blur-2xl" />
+        </div>
+
+        {/* Content - Horizontal layout */}
+        <div className="relative z-10">
+          {/* Header */}
+          <div className="flex items-center justify-between mb-3">
+            <div className="flex items-center gap-2">
+              <div className="relative">
+                <Sparkles className="w-4 h-4" />
+                <span className={`absolute -top-0.5 -right-0.5 w-1.5 h-1.5 ${config.pulseColor} rounded-full animate-ping`} />
+              </div>
+              <span className="text-[10px] font-bold uppercase tracking-widest opacity-90">Dedo no Pulso</span>
+            </div>
+            <button
+              onClick={onRefresh}
+              disabled={isLoading}
+              className="p-1 rounded-lg bg-white/10 hover:bg-white/20 transition-colors disabled:opacity-50"
+            >
+              <RefreshCw className={`w-3.5 h-3.5 ${isLoading ? 'animate-spin' : ''}`} />
+            </button>
+          </div>
+
+          {isLoading ? (
+            <div className="flex items-center justify-center py-4">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '0ms' }} />
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '150ms' }} />
+                <div className="w-2 h-2 bg-white rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
+              </div>
+            </div>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-12 gap-4 items-center">
+              {/* Score Section */}
+              <div className="md:col-span-2 flex items-center gap-3">
+                <div className="relative w-14 h-14 flex-shrink-0">
+                  <svg className="w-14 h-14 transform -rotate-90">
+                    <circle
+                      cx="28"
+                      cy="28"
+                      r="24"
+                      stroke="currentColor"
+                      strokeWidth="5"
+                      fill="none"
+                      className="opacity-20"
+                    />
+                    <motion.circle
+                      cx="28"
+                      cy="28"
+                      r="24"
+                      stroke="currentColor"
+                      strokeWidth="5"
+                      fill="none"
+                      strokeLinecap="round"
+                      initial={{ strokeDasharray: '0 151' }}
+                      animate={{ strokeDasharray: `${(insights?.healthScore || 0) * 1.51} 151` }}
+                      transition={{ duration: 1.5, ease: 'easeOut' }}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-base font-black">{insights?.healthScore || 0}</span>
+                  </div>
+                </div>
+                <div className="hidden md:block">
+                  <div className="flex items-center gap-1">
+                    <StatusIcon className="w-3.5 h-3.5" />
+                    <span className="text-xs font-bold">{config.label}</span>
+                  </div>
+                  <p className="text-[10px] opacity-70">Score</p>
+                </div>
+              </div>
+
+              {/* Main Insight Section */}
+              <div className="md:col-span-7 md:border-l md:border-r border-white/20 md:px-4">
+                <p className="text-sm font-medium leading-relaxed opacity-95">
+                  {insights?.mainInsight || 'Carregando insights...'}
+                </p>
+              </div>
+
+              {/* Action Item Section */}
+              <div className="md:col-span-3">
+                {insights?.actionItem && (
+                  <div className="bg-white/10 rounded-xl p-3">
+                    <p className="text-[10px] font-bold uppercase tracking-wider opacity-70 mb-1">Ação Recomendada</p>
+                    <p className="text-xs font-medium opacity-95">
+                      💡 {insights.actionItem}
+                    </p>
+                  </div>
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+      </motion.div>
+    );
+  }
+
+  // Card variant - original vertical layout
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}

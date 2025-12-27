@@ -247,164 +247,118 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Hero Section: Pulse + Key Metrics */}
-      <div className="grid grid-cols-1 lg:grid-cols-4 gap-4">
-        {/* AI Pulse Card - Destaque */}
-        <div className="lg:col-span-1">
-          <PulseCard
-            insights={insights}
-            isLoading={insightsLoading}
-            onRefresh={refreshInsights}
-          />
-        </div>
-
-        {/* Main Metrics */}
-        <div className="lg:col-span-3 grid grid-cols-1 md:grid-cols-3 gap-4">
-          {/* Meta Prevista do Mês */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0 }}
-            className="relative overflow-hidden rounded-2xl p-5 bg-card shadow-lg border border-border"
-          >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
-            
-            <div className="relative z-10">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                    Meta Prevista
-                  </p>
-                  <p className="text-xs text-primary font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
-                </div>
-                <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                  <Target size={18} />
-                </div>
+      {/* Main KPIs Grid - 4 Columns */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        {/* Meta Prevista do Mês */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0 }}
+          className="relative overflow-hidden rounded-2xl p-5 bg-card shadow-lg border border-border"
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
+          
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Meta Prevista
+                </p>
+                <p className="text-xs text-primary font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
               </div>
-              
-              <h3 className="text-2xl font-black text-foreground mb-2">
-                {formatCurrency(currentMonthMetrics.current.goal)}
-              </h3>
-
-              {/* Percentual realizado vs previsto */}
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${
-                  currentMonthMetrics.progressPercent >= 100 
-                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                    : currentMonthMetrics.progressPercent >= 80
-                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                    : 'bg-red-500/20 text-red-600 dark:text-red-400'
-                }`}>
-                  {currentMonthMetrics.progressPercent >= 100 ? (
-                    <><Trophy size={12} /> +{(currentMonthMetrics.progressPercent - 100).toFixed(0)}% acima</>
-                  ) : (
-                    <><AlertTriangle size={12} /> -{(100 - currentMonthMetrics.progressPercent).toFixed(0)}% faltando</>
-                  )}
-                </span>
-              </div>
-
-              {/* Info semanal para mês incompleto */}
-              {runRateMetrics.daysRemaining > 0 && (
-                <div className="pt-2 border-t border-border">
-                  <p className="text-[9px] text-muted-foreground uppercase mb-1">Semana {weeklyInfo.currentWeek}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-xs text-foreground font-medium">{formatCurrency(weeklyInfo.weeklyRevenue)}</span>
-                    <span className={`text-[10px] font-bold ${
-                      weeklyInfo.weeklyGoalPercent >= 100 ? 'text-emerald-500' : 'text-amber-500'
-                    }`}>
-                      {weeklyInfo.weeklyGoalPercent.toFixed(0)}% da meta semanal
-                    </span>
-                  </div>
-                </div>
-              )}
-            </div>
-          </motion.div>
-
-          {/* Realizado no Mês */}
-          <MetricCard
-            title="Realizado"
-            subtitle={`${currentMonthMetrics.current.month}/${selectedYear}`}
-            value={currentMonthMetrics.current.revenue}
-            formatter={formatCurrency}
-            icon={<DollarSign size={20} />}
-            comparison={comparisons.vsPreviousMonth !== 0 ? {
-              value: comparisons.vsPreviousMonth,
-              label: `vs ${comparisons.previousMonthName}`,
-              type: 'percentage',
-            } : undefined}
-            delay={1}
-          />
-
-          {/* Projeção Run Rate */}
-          <motion.div
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.4, delay: 0.2 }}
-            className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-xl border border-slate-700"
-          >
-            <div className="absolute top-0 right-0 w-24 h-24 bg-amber-500/10 rounded-full blur-2xl" />
-            
-            <div className="relative z-10">
-              <div className="flex justify-between items-start mb-2">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                    Projeção {currentMonthMetrics.current.month}/{selectedYear}
-                  </p>
-                </div>
-                <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
-                  <Zap size={18} fill="currentColor" />
-                </div>
-              </div>
-              
-              <h3 className="text-2xl font-black text-white mb-2">
-                {formatCurrency(runRateMetrics.projection)}
-              </h3>
-
-              <div className="flex items-center gap-2 mb-3">
-                <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${
-                  runRateMetrics.status === 'on_track' 
-                    ? 'bg-emerald-500/20 text-emerald-400' 
-                    : 'bg-amber-500/20 text-amber-400'
-                }`}>
-                  {runRateMetrics.status === 'on_track' ? (
-                    <><ArrowUpRight size={12} /> No ritmo</>
-                  ) : (
-                    <><ArrowDownRight size={12} /> Gap: {formatCurrency(Math.abs(runRateMetrics.gap))}</>
-                  )}
-                </span>
-              </div>
-
-              <div className="grid grid-cols-2 gap-2 pt-2 border-t border-slate-700">
-                <div>
-                  <p className="text-[9px] text-slate-400 uppercase">Valor p/ Meta</p>
-                  <p className="text-sm font-bold text-white">
-                    {runRateMetrics.gap > 0 ? formatCurrency(runRateMetrics.gap) : '✓ Meta atingida'}
-                  </p>
-                </div>
-                <div>
-                  <p className="text-[9px] text-slate-400 uppercase">
-                    {runRateMetrics.isMonthComplete ? 'Status' : 'Dias Restantes'}
-                  </p>
-                  <p className="text-sm font-bold text-white">
-                    {runRateMetrics.isMonthComplete ? 'Mês encerrado' : runRateMetrics.daysRemaining}
-                  </p>
-                </div>
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Target size={16} />
               </div>
             </div>
-          </motion.div>
-        </div>
-      </div>
+            
+            <h3 className="text-xl font-black text-foreground mb-2">
+              {formatCurrency(currentMonthMetrics.current.goal)}
+            </h3>
 
-      {/* Secondary Metrics Row */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {/* Crescimento YoY - Comparando mesmo mês do ano anterior */}
+            {/* Percentual realizado vs previsto */}
+            <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
+                currentMonthMetrics.progressPercent >= 100 
+                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                  : currentMonthMetrics.progressPercent >= 80
+                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                  : 'bg-red-500/20 text-red-600 dark:text-red-400'
+              }`}>
+                {currentMonthMetrics.progressPercent >= 100 ? (
+                  <><Trophy size={10} /> +{(currentMonthMetrics.progressPercent - 100).toFixed(0)}% acima</>
+                ) : (
+                  <><AlertTriangle size={10} /> -{(100 - currentMonthMetrics.progressPercent).toFixed(0)}% faltando</>
+                )}
+              </span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Realizado no Mês */}
+        <MetricCard
+          title="Realizado"
+          subtitle={`${currentMonthMetrics.current.month}/${selectedYear}`}
+          value={currentMonthMetrics.current.revenue}
+          formatter={formatCurrency}
+          icon={<DollarSign size={16} />}
+          comparison={comparisons.vsPreviousMonth !== 0 ? {
+            value: comparisons.vsPreviousMonth,
+            label: `vs ${comparisons.previousMonthName}`,
+            type: 'percentage',
+          } : undefined}
+          delay={1}
+        />
+
+        {/* Projeção Run Rate */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.2 }}
+          className="relative overflow-hidden rounded-2xl p-5 bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white shadow-lg border border-slate-700"
+        >
+          <div className="absolute top-0 right-0 w-20 h-20 bg-amber-500/10 rounded-full blur-2xl" />
+          
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                  Projeção
+                </p>
+                <p className="text-xs text-slate-400 font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
+                <Zap size={16} fill="currentColor" />
+              </div>
+            </div>
+            
+            <h3 className="text-xl font-black text-white mb-2">
+              {formatCurrency(runRateMetrics.projection)}
+            </h3>
+
+            <div className="flex items-center gap-2">
+              <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
+                runRateMetrics.status === 'on_track' 
+                  ? 'bg-emerald-500/20 text-emerald-400' 
+                  : 'bg-amber-500/20 text-amber-400'
+              }`}>
+                {runRateMetrics.status === 'on_track' ? (
+                  <><ArrowUpRight size={10} /> No ritmo</>
+                ) : (
+                  <><ArrowDownRight size={10} /> Gap: {formatCurrency(Math.abs(runRateMetrics.gap))}</>
+                )}
+              </span>
+            </div>
+          </div>
+        </motion.div>
+
+        {/* Crescimento YoY */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.4, delay: 0.3 }}
           className="relative overflow-hidden rounded-2xl p-5 bg-card shadow-lg border border-border"
         >
-          <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
+          <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl" />
           
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-2">
@@ -415,69 +369,40 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
                 <p className="text-xs text-primary font-semibold">{lastYear} vs {selectedYear}</p>
               </div>
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Percent size={18} />
+                <Percent size={16} />
               </div>
             </div>
             
-            {/* Cálculo YoY: (atual - anterior) / anterior */}
             {(() => {
               const growthPercent = comparisons.vsSameMonthLastYear;
               const isPositive = growthPercent >= 0;
               
               return (
                 <>
-                  <h3 className={`text-2xl font-black mb-2 ${
+                  <h3 className={`text-xl font-black mb-2 ${
                     isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
                   }`}>
                     {isPositive ? '+' : ''}{growthPercent.toFixed(1)}%
                   </h3>
                   
                   <div className="flex items-center gap-2">
-                    <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${
+                    <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
                       isPositive 
                         ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
                         : 'bg-red-500/20 text-red-600 dark:text-red-400'
                     }`}>
                       {isPositive ? (
-                        <><ArrowUpRight size={12} /> Crescimento</>
+                        <><ArrowUpRight size={10} /> Crescimento</>
                       ) : (
-                        <><ArrowDownRight size={12} /> Retração</>
+                        <><ArrowDownRight size={10} /> Retração</>
                       )}
                     </span>
-                  </div>
-
-                  <div className="pt-3 border-t border-border mt-3">
-                    <p className="text-[9px] text-muted-foreground uppercase mb-1">
-                      {currentMonthMetrics.current.month}/{lastYear} → {currentMonthMetrics.current.month}/{selectedYear}
-                    </p>
-                    <div className="flex items-center justify-between text-xs">
-                      <span className="text-muted-foreground">
-                        {formatCurrency(currentMonthMetrics.sameMonthLastYear?.revenue || 0)}
-                      </span>
-                      <span className="text-foreground font-semibold">
-                        {formatCurrency(currentMonthMetrics.current.revenue)}
-                      </span>
-                    </div>
                   </div>
                 </>
               );
             })()}
           </div>
         </motion.div>
-
-        <MetricCard
-          title="Acumulado Ano"
-          subtitle={selectedYear.toString()}
-          value={data.kpis.annualRealized}
-          formatter={formatCurrency}
-          icon={<TrendingUp size={18} />}
-          comparison={{
-            value: data.kpis.lastYearGrowth,
-            label: `vs ${lastYear}`,
-            type: 'percentage',
-          }}
-          delay={4}
-        />
       </div>
 
       {/* Chart Section */}
@@ -740,6 +665,24 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
             </div>
           ))}
         </div>
+      </motion.div>
+
+      {/* AI Pulse Banner - Final Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.8 }}
+      >
+        <h4 className="text-sm font-bold text-muted-foreground mb-4 px-1 flex items-center gap-2 uppercase tracking-widest">
+          Análise Inteligente
+          <InfoTooltip text="Insights gerados por IA com base nos seus dados de vendas." />
+        </h4>
+        <PulseCard
+          insights={insights}
+          isLoading={insightsLoading}
+          onRefresh={refreshInsights}
+          variant="banner"
+        />
       </motion.div>
     </div>
   );
