@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, ComposedChart, Bar, ReferenceLine, Line, Cell
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, ComposedChart, Bar, ReferenceLine, Line, Cell, ReferenceArea
 } from 'recharts';
 import {
   TrendingUp, Target, Calendar, DollarSign, CreditCard, Users, Activity, Percent, ShoppingBag, Zap, ArrowUpRight, ArrowDownRight, ShoppingCart, Trophy, AlertTriangle
@@ -575,7 +575,41 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
                   <stop offset="5%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.3} />
                   <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.1} />
                 </linearGradient>
+                <linearGradient id="aboveGoalZone" x1="0" y1="1" x2="0" y2="0">
+                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
+                  <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
+                </linearGradient>
+                <linearGradient id="belowGoalZone" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="0%" stopColor="#ef4444" stopOpacity={0.08} />
+                  <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
+                </linearGradient>
               </defs>
+              
+              {/* Performance zones - Above and Below Goal */}
+              {period === 'monthly' && currentMonthMetrics.current.goal > 0 && (
+                <>
+                  <ReferenceArea
+                    y1={currentMonthMetrics.current.goal}
+                    y2={currentMonthMetrics.current.goal * 1.5}
+                    fill="url(#aboveGoalZone)"
+                    fillOpacity={1}
+                    label={{ 
+                      value: '✓ Acima da Meta', 
+                      position: 'insideTopRight',
+                      fill: '#10b981',
+                      fontSize: 9,
+                      fontWeight: 600,
+                      opacity: 0.7
+                    }}
+                  />
+                  <ReferenceArea
+                    y1={0}
+                    y2={currentMonthMetrics.current.goal}
+                    fill="url(#belowGoalZone)"
+                    fillOpacity={1}
+                  />
+                </>
+              )}
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
                 dataKey="name" 

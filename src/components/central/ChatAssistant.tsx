@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Send, X, Loader2, Bot, User, Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -6,6 +6,8 @@ import { Input } from "@/components/ui/input";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { DashboardData, ChatMessage } from "@/types";
 import { cn } from "@/lib/utils";
+import { supabase } from "@/integrations/supabase/client";
+import { useToast } from "@/hooks/use-toast";
 
 interface ChatAssistantProps {
   data: DashboardData;
@@ -25,6 +27,7 @@ const ChatAssistant = ({ data }: ChatAssistantProps) => {
   const [isLoading, setIsLoading] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const { toast } = useToast();
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -38,82 +41,30 @@ const ChatAssistant = ({ data }: ChatAssistantProps) => {
     }
   }, [isOpen]);
 
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
-  };
-
-  const generateContextualResponse = (userMessage: string): string => {
-    const lowerMessage = userMessage.toLowerCase();
-    const { kpis, currentYearData, team } = data;
+  // Build context from dashboard data
+  const dashboardContext = useMemo(() => {
+    const validMonths = data.currentYearData.filter(d => d.revenue > 0);
+    const currentMonth = validMonths.length > 0 ? validMonths[validMonths.length - 1] : { revenue: 0, goal: 0, month: 'Jan' };
+    const selectedYear = data.currentYearData.length > 0 ? data.currentYearData[0].year : new Date().getFullYear();
     
-    const progress = (kpis.annualRealized / kpis.annualGoal) * 100;
-    const completedMonths = currentYearData.filter((m) => m.revenue > 0).length;
-    const remainingMonths = 12 - completedMonths;
-    const remaining = kpis.annualGoal - kpis.annualRealized;
-    const monthlyNeeded = remainingMonths > 0 ? remaining / remainingMonths : 0;
-
-    // Meta/Objetivo related
-    if (lowerMessage.includes("meta") || lowerMessage.includes("objetivo") || lowerMessage.includes("goal")) {
-      return `📊 **Análise da Meta Anual:**\n\n• Meta: ${formatCurrency(kpis.annualGoal)}\n• Realizado: ${formatCurrency(kpis.annualRealized)} (${progress.toFixed(1)}%)\n• Faltam: ${formatCurrency(remaining)}\n• Para atingir a meta, você precisa faturar **${formatCurrency(monthlyNeeded)}** por mês nos próximos ${remainingMonths} meses.\n\n${progress >= (completedMonths / 12) * 100 ? "✅ Você está no ritmo para atingir a meta!" : "⚠️ Atenção: você está abaixo do ritmo ideal."}`;
-    }
-
-    // Performance/Desempenho
-    if (lowerMessage.includes("desempenho") || lowerMessage.includes("performance") || lowerMessage.includes("como está")) {
-      const ltvCacRatio = kpis.cac > 0 ? kpis.ltv / kpis.cac : 0;
-      return `📈 **Resumo do Desempenho:**\n\n• Crescimento vs ano anterior: ${kpis.lastYearGrowth > 0 ? "+" : ""}${kpis.lastYearGrowth}%\n• Taxa de conversão: ${kpis.conversionRate}%\n• Ticket médio: ${formatCurrency(kpis.averageTicket)}\n• Clientes ativos: ${kpis.activeCustomers}\n• Relação LTV/CAC: ${ltvCacRatio.toFixed(1)}x\n\n${kpis.lastYearGrowth > 0 ? "🎉 Parabéns pelo crescimento!" : "💡 Dica: Foque em estratégias de retenção e upsell."}`;
-    }
-
-    // Equipe/Team
-    if (lowerMessage.includes("equipe") || lowerMessage.includes("time") || lowerMessage.includes("vendedor")) {
-      const activeTeam = team.filter((m) => m.active && !m.isPlaceholder);
-      if (activeTeam.length === 0) {
-        return "👥 Você ainda não tem membros cadastrados na equipe. Adicione vendedores para acompanhar o desempenho individual.";
-      }
-      const totalRevenue = activeTeam.reduce((sum, m) => sum + m.totalRevenue, 0);
-      const topPerformer = activeTeam.reduce((prev, curr) => 
-        curr.totalRevenue > prev.totalRevenue ? curr : prev
-      );
-      return `👥 **Análise da Equipe:**\n\n• Vendedores ativos: ${activeTeam.length}\n• Faturamento total: ${formatCurrency(totalRevenue)}\n• Top performer: **${topPerformer.name}** com ${formatCurrency(topPerformer.totalRevenue)}\n\n💡 Dica: Identifique as práticas do top performer e compartilhe com a equipe.`;
-    }
-
-    // Ticket/Vendas
-    if (lowerMessage.includes("ticket") || lowerMessage.includes("venda") || lowerMessage.includes("vendas")) {
-      return `🎫 **Análise de Vendas:**\n\n• Total de vendas: ${kpis.totalSalesCount}\n• Ticket médio: ${formatCurrency(kpis.averageTicket)}\n• Taxa de conversão: ${kpis.conversionRate}%\n\n💡 Dica: Para aumentar o ticket médio, considere:\n- Cross-selling de produtos complementares\n- Pacotes ou bundles\n- Upgrades para versões premium`;
-    }
-
-    // CAC/LTV
-    if (lowerMessage.includes("cac") || lowerMessage.includes("ltv") || lowerMessage.includes("custo")) {
-      const ltvCacRatio = kpis.cac > 0 ? kpis.ltv / kpis.cac : 0;
-      return `💰 **Métricas de Aquisição:**\n\n• CAC (Custo de Aquisição): ${formatCurrency(kpis.cac)}\n• LTV (Valor do Cliente): ${formatCurrency(kpis.ltv)}\n• Relação LTV/CAC: ${ltvCacRatio.toFixed(1)}x\n\n${ltvCacRatio >= 3 ? "✅ Excelente! Sua relação LTV/CAC está saudável." : ltvCacRatio >= 2 ? "⚠️ Boa relação, mas há espaço para melhoria." : "🚨 Atenção: Revise seus custos de aquisição."}`;
-    }
-
-    // Dica/Sugestão
-    if (lowerMessage.includes("dica") || lowerMessage.includes("sugestão") || lowerMessage.includes("ajuda") || lowerMessage.includes("melhorar")) {
-      const suggestions = [];
-      if (kpis.conversionRate < 30) {
-        suggestions.push("• Melhore o processo de qualificação de leads");
-      }
-      if (kpis.averageTicket < 1000) {
-        suggestions.push("• Implemente estratégias de upselling");
-      }
-      if (progress < (completedMonths / 12) * 100) {
-        suggestions.push("• Intensifique as ações de prospecção");
-      }
-      if (team.filter((m) => m.active).length > 0) {
-        suggestions.push("• Faça reuniões semanais de alinhamento com a equipe");
-      }
-      
-      return `💡 **Sugestões Personalizadas:**\n\n${suggestions.length > 0 ? suggestions.join("\n") : "• Continue acompanhando suas métricas regularmente\n• Mantenha o foco nas atividades que geram resultado\n• Celebre as pequenas vitórias com sua equipe"}\n\n🎯 Lembre-se: Consistência é a chave do sucesso em vendas!`;
-    }
-
-    // Default response
-    return `Entendi sua pergunta! 🤔\n\nPosso ajudar com informações sobre:\n• **Metas** - análise de progresso e projeções\n• **Desempenho** - métricas e indicadores\n• **Equipe** - performance dos vendedores\n• **Vendas** - ticket médio e conversão\n• **Custos** - CAC e LTV\n• **Dicas** - sugestões de melhoria\n\nSobre o que você gostaria de saber mais?`;
-  };
+    return {
+      companyName: data.companyName,
+      businessSegment: data.businessSegment,
+      annualGoal: data.kpis.annualGoal,
+      annualRealized: data.kpis.annualRealized,
+      lastYearGrowth: data.kpis.lastYearGrowth,
+      averageTicket: data.kpis.averageTicket,
+      conversionRate: data.kpis.conversionRate,
+      cac: data.kpis.cac,
+      ltv: data.kpis.ltv,
+      activeCustomers: data.kpis.activeCustomers,
+      totalSalesCount: data.kpis.totalSalesCount,
+      currentMonthRevenue: currentMonth.revenue,
+      currentMonthGoal: currentMonth.goal,
+      currentMonthName: currentMonth.month,
+      selectedYear,
+    };
+  }, [data]);
 
   const handleSend = async () => {
     if (!input.trim() || isLoading) return;
@@ -129,20 +80,72 @@ const ChatAssistant = ({ data }: ChatAssistantProps) => {
     setInput("");
     setIsLoading(true);
 
-    // Simulate AI response delay
-    await new Promise((resolve) => setTimeout(resolve, 1000 + Math.random() * 1000));
+    try {
+      // Prepare messages for API (convert to expected format)
+      const apiMessages = messages
+        .filter(m => m.role !== "model" || m.id !== "1") // Exclude initial greeting
+        .map(m => ({
+          role: m.role === "model" ? "assistant" : "user",
+          content: m.text,
+        }));
+      
+      // Add current user message
+      apiMessages.push({
+        role: "user",
+        content: userMessage.text,
+      });
 
-    const response = generateContextualResponse(userMessage.text);
-    
-    const assistantMessage: ChatMessage = {
-      id: (Date.now() + 1).toString(),
-      role: "model",
-      text: response,
-      timestamp: new Date(),
-    };
+      const { data: responseData, error } = await supabase.functions.invoke('chat-assistant', {
+        body: { 
+          messages: apiMessages,
+          context: dashboardContext,
+        },
+      });
 
-    setMessages((prev) => [...prev, assistantMessage]);
-    setIsLoading(false);
+      if (error) {
+        throw error;
+      }
+
+      if (responseData?.error) {
+        if (responseData.error === 'rate_limit') {
+          toast({
+            title: "Limite atingido",
+            description: responseData.message,
+            variant: "destructive",
+          });
+        } else if (responseData.error === 'payment_required') {
+          toast({
+            title: "Créditos insuficientes",
+            description: responseData.message,
+            variant: "destructive",
+          });
+        }
+        throw new Error(responseData.message);
+      }
+
+      const assistantMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "model",
+        text: responseData.message,
+        timestamp: new Date(),
+      };
+
+      setMessages((prev) => [...prev, assistantMessage]);
+    } catch (err) {
+      console.error("Chat error:", err);
+      
+      // Fallback response
+      const fallbackMessage: ChatMessage = {
+        id: (Date.now() + 1).toString(),
+        role: "model",
+        text: "Desculpe, tive um problema ao processar sua pergunta. Por favor, tente novamente em alguns segundos. 🔄",
+        timestamp: new Date(),
+      };
+      
+      setMessages((prev) => [...prev, fallbackMessage]);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -194,7 +197,7 @@ const ChatAssistant = ({ data }: ChatAssistantProps) => {
                 </div>
                 <div>
                   <h3 className="font-semibold text-foreground">Assistente IA</h3>
-                  <p className="text-xs text-muted-foreground">Sempre online</p>
+                  <p className="text-xs text-muted-foreground">Powered by Lovable AI</p>
                 </div>
               </div>
               <Button
