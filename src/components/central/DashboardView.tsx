@@ -397,20 +397,73 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
 
       {/* Secondary Metrics Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <MetricCard
-          title="Meta Anual"
-          subtitle={selectedYear.toString()}
-          value={data.kpis.annualGoal}
-          formatter={formatCurrency}
-          icon={<Target size={18} />}
-          progress={{
-            current: data.kpis.annualRealized,
-            total: data.kpis.annualGoal,
-            showBar: true,
-            showPercentageBadge: true,
-          }}
-          delay={3}
-        />
+        {/* Crescimento YoY - Comparando mesmo mês do ano anterior */}
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.4, delay: 0.3 }}
+          className="relative overflow-hidden rounded-2xl p-5 bg-card shadow-lg border border-border"
+        >
+          <div className="absolute top-0 right-0 w-24 h-24 bg-primary/5 rounded-full blur-2xl" />
+          
+          <div className="relative z-10">
+            <div className="flex justify-between items-start mb-2">
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  Crescimento %
+                </p>
+                <p className="text-xs text-primary font-semibold">{lastYear} vs {selectedYear}</p>
+              </div>
+              <div className="p-2 rounded-lg bg-primary/10 text-primary">
+                <Percent size={18} />
+              </div>
+            </div>
+            
+            {/* Cálculo YoY: (atual - anterior) / anterior */}
+            {(() => {
+              const growthPercent = comparisons.vsSameMonthLastYear;
+              const isPositive = growthPercent >= 0;
+              
+              return (
+                <>
+                  <h3 className={`text-2xl font-black mb-2 ${
+                    isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
+                  }`}>
+                    {isPositive ? '+' : ''}{growthPercent.toFixed(1)}%
+                  </h3>
+                  
+                  <div className="flex items-center gap-2">
+                    <span className={`flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded ${
+                      isPositive 
+                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                        : 'bg-red-500/20 text-red-600 dark:text-red-400'
+                    }`}>
+                      {isPositive ? (
+                        <><ArrowUpRight size={12} /> Crescimento</>
+                      ) : (
+                        <><ArrowDownRight size={12} /> Retração</>
+                      )}
+                    </span>
+                  </div>
+
+                  <div className="pt-3 border-t border-border mt-3">
+                    <p className="text-[9px] text-muted-foreground uppercase mb-1">
+                      {currentMonthMetrics.current.month}/{lastYear} → {currentMonthMetrics.current.month}/{selectedYear}
+                    </p>
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-muted-foreground">
+                        {formatCurrency(currentMonthMetrics.sameMonthLastYear?.revenue || 0)}
+                      </span>
+                      <span className="text-foreground font-semibold">
+                        {formatCurrency(currentMonthMetrics.current.revenue)}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              );
+            })()}
+          </div>
+        </motion.div>
 
         <MetricCard
           title="Acumulado Ano"
