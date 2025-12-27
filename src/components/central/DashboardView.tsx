@@ -396,7 +396,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
       </div>
 
       {/* Secondary Metrics Row */}
-      <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
         {/* Crescimento YoY - Comparando mesmo mês do ano anterior */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -477,22 +477,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
             type: 'percentage',
           }}
           delay={4}
-        />
-
-        <MetricCard
-          title="Ticket Médio"
-          value={data.kpis.averageTicket}
-          formatter={formatCurrency}
-          icon={<CreditCard size={18} />}
-          delay={5}
-        />
-
-        <MetricCard
-          title="Total de Vendas"
-          value={data.kpis.totalSalesCount}
-          formatter={(v) => Math.round(v).toString()}
-          icon={<ShoppingCart size={18} />}
-          delay={6}
         />
       </div>
 
