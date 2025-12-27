@@ -12,6 +12,7 @@ import PGVView from "@/components/central/PGVView";
 import SeasonalityView from "@/components/central/SeasonalityView";
 import InsightsView from "@/components/central/InsightsView";
 import SettingsView from "@/components/central/SettingsView";
+import SalesEntryView from "@/components/central/SalesEntryView";
 import Sidebar from "@/components/central/Sidebar";
 import ChatAssistant from "@/components/central/ChatAssistant";
 import UploadModal from "@/components/central/UploadModal";
@@ -215,12 +216,7 @@ const AuthenticatedApp = () => {
           </div>
         );
       case "input-center":
-        return (
-          <div className="p-8">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Lançamentos</h2>
-            <p className="text-muted-foreground">Em desenvolvimento...</p>
-          </div>
-        );
+        return <SalesEntryView team={displayData.team} />;
       case "agency-global":
         return (
           <div className="p-8">
