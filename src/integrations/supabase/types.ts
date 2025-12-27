@@ -49,6 +49,42 @@ export type Database = {
           },
         ]
       }
+      clients: {
+        Row: {
+          created_at: string
+          email: string | null
+          first_purchase_date: string | null
+          id: string
+          name: string
+          notes: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          email?: string | null
+          first_purchase_date?: string | null
+          id?: string
+          name: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          email?: string | null
+          first_purchase_date?: string | null
+          id?: string
+          name?: string
+          notes?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       dashboard_data: {
         Row: {
           app_settings: Json | null
@@ -189,6 +225,71 @@ export type Database = {
         }
         Relationships: []
       }
+      sales: {
+        Row: {
+          acquisition_cost: number | null
+          amount: number
+          channel: Database["public"]["Enums"]["sale_channel"]
+          client_id: string | null
+          client_name: string | null
+          created_at: string
+          id: string
+          is_new_client: boolean
+          lead_source: Database["public"]["Enums"]["lead_source"] | null
+          notes: string | null
+          product_service: string | null
+          sale_date: string
+          salesperson_id: string
+          salesperson_name: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          acquisition_cost?: number | null
+          amount: number
+          channel?: Database["public"]["Enums"]["sale_channel"]
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          is_new_client?: boolean
+          lead_source?: Database["public"]["Enums"]["lead_source"] | null
+          notes?: string | null
+          product_service?: string | null
+          sale_date?: string
+          salesperson_id: string
+          salesperson_name: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          acquisition_cost?: number | null
+          amount?: number
+          channel?: Database["public"]["Enums"]["sale_channel"]
+          client_id?: string | null
+          client_name?: string | null
+          created_at?: string
+          id?: string
+          is_new_client?: boolean
+          lead_source?: Database["public"]["Enums"]["lead_source"] | null
+          notes?: string | null
+          product_service?: string | null
+          sale_date?: string
+          salesperson_id?: string
+          salesperson_name?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "sales_client_id_fkey"
+            columns: ["client_id"]
+            isOneToOne: false
+            referencedRelation: "clients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
@@ -197,6 +298,15 @@ export type Database = {
       [_ in never]: never
     }
     Enums: {
+      lead_source:
+        | "indicacao"
+        | "redes_sociais"
+        | "google"
+        | "evento"
+        | "cold_call"
+        | "parceiro"
+        | "outro"
+      sale_channel: "online" | "presencial"
       user_role: "consultant" | "business_owner"
     }
     CompositeTypes: {
@@ -325,6 +435,16 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
+      lead_source: [
+        "indicacao",
+        "redes_sociais",
+        "google",
+        "evento",
+        "cold_call",
+        "parceiro",
+        "outro",
+      ],
+      sale_channel: ["online", "presencial"],
       user_role: ["consultant", "business_owner"],
     },
   },
