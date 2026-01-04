@@ -94,25 +94,14 @@ const ComparativeInsights = ({
     },
     {
       icon: insights.growthVsLastYear >= 0 ? TrendingUp : TrendingDown,
-      title: 'Crescimento YoY',
+      title: `Comparativo ${selectedYear} vs ${lastYear}`,
       value: `${insights.growthVsLastYear >= 0 ? '+' : ''}${insights.growthVsLastYear.toFixed(1)}%`,
-      detail: `vs Jan-${insights.lastMonthName} ${lastYear}`,
+      detail: `acumulado Jan-${insights.lastMonthName}`,
       badge: insights.growthVsLastYear >= 0 ? 'Crescendo' : 'Retraindo',
       badgeColor: insights.growthVsLastYear >= 0 ? 'emerald' : 'red',
       iconBg: insights.growthVsLastYear >= 0 
         ? 'bg-emerald-500/10 text-emerald-500' 
         : 'bg-red-500/10 text-red-500',
-    },
-    {
-      icon: Calculator,
-      title: 'Projeção Anual',
-      value: formatCurrency(insights.projectedAnnual),
-      detail: 'baseado na média mensal',
-      badge: insights.projectedVsGoal >= 0 
-        ? `+${insights.projectedVsGoal.toFixed(0)}% da meta anual`
-        : `${insights.projectedVsGoal.toFixed(0)}% da meta anual`,
-      badgeColor: insights.projectedVsGoal >= 0 ? 'emerald' : 'red',
-      iconBg: 'bg-primary/10 text-primary',
     },
   ];
 

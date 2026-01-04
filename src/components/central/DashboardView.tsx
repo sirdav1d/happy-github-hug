@@ -365,7 +365,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           delay={1}
         />
 
-        {/* Run Rate - Projeção do Mês */}
+        {/* Falta p/ Meta */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -376,41 +376,47 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-2">
-              <div className="flex items-center gap-1">
-                <div>
-                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                    Run Rate
-                  </p>
-                  <p className="text-xs text-slate-400 font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
-                </div>
-                <InfoTooltip text="Projeção do mês baseada no ritmo atual de vendas. Diferente da Projeção Anual que usa a média mensal do ano." />
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                  Falta p/ Meta
+                </p>
+                <p className="text-xs text-slate-400 font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
               </div>
               <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
-                <Zap size={16} fill="currentColor" />
+                <Target size={16} />
               </div>
             </div>
             
-            <h3 className="text-xl font-black text-white mb-2">
-              {formatCurrency(runRateMetrics.projection)}
-            </h3>
+            {(() => {
+              const remaining = currentMonthMetrics.current.goal - currentMonthMetrics.current.revenue;
+              return (
+                <>
+                  <h3 className="text-xl font-black text-white mb-2">
+                    {remaining > 0 
+                      ? formatCurrency(remaining) 
+                      : 'Meta batida! 🎉'}
+                  </h3>
 
-            <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
-                runRateMetrics.status === 'on_track' 
-                  ? 'bg-emerald-500/20 text-emerald-400' 
-                  : 'bg-amber-500/20 text-amber-400'
-              }`}>
-                {runRateMetrics.status === 'on_track' ? (
-                  <><ArrowUpRight size={10} /> No ritmo</>
-                ) : (
-                  <><ArrowDownRight size={10} /> Gap: {formatCurrency(Math.abs(runRateMetrics.gap))}</>
-                )}
-              </span>
-            </div>
+                  <div className="flex items-center gap-2">
+                    <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
+                      remaining <= 0 
+                        ? 'bg-emerald-500/20 text-emerald-400' 
+                        : 'bg-amber-500/20 text-amber-400'
+                    }`}>
+                      {remaining <= 0 ? (
+                        <><ArrowUpRight size={10} /> +{formatCurrency(Math.abs(remaining))} acima</>
+                      ) : (
+                        <>{runRateMetrics.daysRemaining} dias úteis restantes</>
+                      )}
+                    </span>
+                  </div>
+                </>
+              );
+            })()}
           </div>
         </motion.div>
 
-        {/* Crescimento YoY */}
+        {/* Comparativo Ano vs Ano Anterior */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -423,9 +429,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
             <div className="flex justify-between items-start mb-2">
               <div>
                 <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Crescimento %
+                  Comparativo
                 </p>
-                <p className="text-xs text-primary font-semibold">{lastYear} vs {selectedYear}</p>
+                <p className="text-xs text-primary font-semibold">{selectedYear} vs {lastYear}</p>
               </div>
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
                 <Percent size={16} />
