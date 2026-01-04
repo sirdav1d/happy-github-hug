@@ -1,6 +1,6 @@
-import React, { useMemo } from 'react';
+import { useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { TrendingUp, TrendingDown, Trophy, Calendar, Target, Zap } from 'lucide-react';
+import { TrendingUp, TrendingDown, Trophy, Target, Zap, Calculator } from 'lucide-react';
 import { MonthlyData } from '@/types';
 
 interface ComparativeInsightsProps {
@@ -10,17 +10,16 @@ interface ComparativeInsightsProps {
   lastYear: number;
 }
 
-const ComparativeInsights: React.FC<ComparativeInsightsProps> = ({
+const ComparativeInsights = ({
   currentYearData,
   historicalData,
   selectedYear,
   lastYear,
-}) => {
+}: ComparativeInsightsProps) => {
   const formatCurrency = (val: number) =>
     new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
 
   const insights = useMemo(() => {
-    // Filter months with data
     const monthsWithData = currentYearData.filter(d => d.revenue > 0);
     
     // Best month
@@ -34,7 +33,7 @@ const ComparativeInsights: React.FC<ComparativeInsightsProps> = ({
     // Months above goal
     const monthsAboveGoal = monthsWithData.filter(d => d.goal > 0 && d.revenue >= d.goal).length;
     
-    // Accumulated comparison
+    // Accumulated comparison (YoY)
     const currentYearTotal = monthsWithData.reduce((sum, d) => sum + d.revenue, 0);
     const monthOrder = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
     const lastMonthName = monthsWithData[monthsWithData.length - 1]?.month || 'Jan';
@@ -48,17 +47,7 @@ const ComparativeInsights: React.FC<ComparativeInsightsProps> = ({
       ? ((currentYearTotal - lastYearSamePeriod) / lastYearSamePeriod) * 100 
       : 0;
 
-    // Trend analysis (last 3 months)
-    const recentMonths = monthsWithData.slice(-3);
-    let trend: 'up' | 'down' | 'stable' = 'stable';
-    if (recentMonths.length >= 2) {
-      const changes = recentMonths.slice(1).map((d, i) => d.revenue - recentMonths[i].revenue);
-      const avgChange = changes.reduce((a, b) => a + b, 0) / changes.length;
-      if (avgChange > 0) trend = 'up';
-      else if (avgChange < 0) trend = 'down';
-    }
-
-    // Run rate projection
+    // Annual projection (based on average monthly revenue)
     const avgMonthlyRevenue = monthsWithData.length > 0 
       ? currentYearTotal / monthsWithData.length 
       : 0;
@@ -74,9 +63,9 @@ const ComparativeInsights: React.FC<ComparativeInsightsProps> = ({
       monthsAboveGoal, 
       totalMonths: monthsWithData.length,
       growthVsLastYear,
-      trend,
       projectedAnnual,
       projectedVsGoal,
+      lastMonthName,
     };
   }, [currentYearData, historicalData, lastYear]);
 
@@ -105,9 +94,9 @@ const ComparativeInsights: React.FC<ComparativeInsightsProps> = ({
     },
     {
       icon: insights.growthVsLastYear >= 0 ? TrendingUp : TrendingDown,
-      title: 'Crescimento Acumulado',
+      title: 'Crescimento YoY',
       value: `${insights.growthVsLastYear >= 0 ? '+' : ''}${insights.growthVsLastYear.toFixed(1)}%`,
-      detail: `vs mesmo período ${lastYear}`,
+      detail: `vs Jan-${insights.lastMonthName} ${lastYear}`,
       badge: insights.growthVsLastYear >= 0 ? 'Crescendo' : 'Retraindo',
       badgeColor: insights.growthVsLastYear >= 0 ? 'emerald' : 'red',
       iconBg: insights.growthVsLastYear >= 0 
@@ -115,19 +104,15 @@ const ComparativeInsights: React.FC<ComparativeInsightsProps> = ({
         : 'bg-red-500/10 text-red-500',
     },
     {
-      icon: insights.trend === 'up' ? TrendingUp : insights.trend === 'down' ? TrendingDown : Calendar,
-      title: 'Tendência',
-      value: insights.trend === 'up' ? 'Crescente' : insights.trend === 'down' ? 'Decrescente' : 'Estável',
-      detail: 'últimos 3 meses',
+      icon: Calculator,
+      title: 'Projeção Anual',
+      value: formatCurrency(insights.projectedAnnual),
+      detail: 'baseado na média mensal',
       badge: insights.projectedVsGoal >= 0 
-        ? `Projeção: +${insights.projectedVsGoal.toFixed(0)}% da meta anual`
-        : `Projeção: ${insights.projectedVsGoal.toFixed(0)}% da meta anual`,
-      badgeColor: insights.projectedVsGoal >= 0 ? 'emerald' : 'amber',
-      iconBg: insights.trend === 'up' 
-        ? 'bg-emerald-500/10 text-emerald-500' 
-        : insights.trend === 'down' 
-          ? 'bg-red-500/10 text-red-500' 
-          : 'bg-muted text-muted-foreground',
+        ? `+${insights.projectedVsGoal.toFixed(0)}% da meta anual`
+        : `${insights.projectedVsGoal.toFixed(0)}% da meta anual`,
+      badgeColor: insights.projectedVsGoal >= 0 ? 'emerald' : 'red',
+      iconBg: 'bg-primary/10 text-primary',
     },
   ];
 
