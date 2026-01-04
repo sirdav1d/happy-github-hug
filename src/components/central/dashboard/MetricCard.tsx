@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
+import { ResponsiveContainer, AreaChart, Area } from 'recharts';
+
+interface SparklineData {
+  value: number;
+}
 
 interface MetricCardProps {
   title: string;
@@ -11,7 +16,7 @@ interface MetricCardProps {
     current: number;
     total: number;
     showBar?: boolean;
-    showPercentageBadge?: boolean; // Show percentage badge instead of just bar
+    showPercentageBadge?: boolean;
   };
   comparison?: {
     value: number;
@@ -22,6 +27,7 @@ interface MetricCardProps {
   variant?: 'default' | 'highlight' | 'dark';
   accentColor?: string;
   delay?: number;
+  sparkline?: SparklineData[];
 }
 
 const AnimatedCounter = ({ 
@@ -57,6 +63,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
   variant = 'default',
   accentColor = 'primary',
   delay = 0,
+  sparkline,
 }) => {
   const isPositive = comparison?.value ? comparison.value >= 0 : true;
   const TrendIcon = comparison?.value 
@@ -180,6 +187,30 @@ const MetricCard: React.FC<MetricCardProps> = ({
               }`}
             />
           </div>
+        </div>
+      )}
+
+      {/* Sparkline */}
+      {sparkline && sparkline.length > 0 && (
+        <div className="mt-3 h-10">
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={sparkline} margin={{ top: 0, right: 0, left: 0, bottom: 0 }}>
+              <defs>
+                <linearGradient id={`sparklineGradient-${title.replace(/\s/g, '')}`} x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                </linearGradient>
+              </defs>
+              <Area
+                type="monotone"
+                dataKey="value"
+                stroke="hsl(var(--primary))"
+                strokeWidth={1.5}
+                fill={`url(#sparklineGradient-${title.replace(/\s/g, '')})`}
+                dot={false}
+              />
+            </AreaChart>
+          </ResponsiveContainer>
         </div>
       )}
     </motion.div>

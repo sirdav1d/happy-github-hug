@@ -9,6 +9,9 @@ import { motion } from 'framer-motion';
 import InfoTooltip from './InfoTooltip';
 import PulseCard from './dashboard/PulseCard';
 import MetricCard from './dashboard/MetricCard';
+import JourneyBanner from './dashboard/JourneyBanner';
+import GoalPercentChart from './dashboard/GoalPercentChart';
+import ComparativeInsights from './dashboard/ComparativeInsights';
 import useAIInsights from '@/hooks/useAIInsights';
 import { DashboardData } from '@/types';
 
@@ -320,6 +323,15 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
+      {/* Journey Banner */}
+      <JourneyBanner
+        mentorshipStartDate={data.mentorshipStartDate}
+        currentMonth={currentMonthMetrics.current.month}
+        currentYear={selectedYear}
+        progressPercent={currentMonthMetrics.progressPercent}
+        annualProgress={annualAccumulated.progressPercent}
+      />
+
       {/* Main KPIs Grid - 5 Columns */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         {/* Meta Prevista do Mês */}
@@ -788,11 +800,25 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         </div>
       </motion.div>
 
+      {/* Goal Percent Chart */}
+      <GoalPercentChart
+        currentYearData={data.currentYearData}
+        selectedYear={selectedYear}
+      />
+
+      {/* Comparative Insights */}
+      <ComparativeInsights
+        currentYearData={data.currentYearData}
+        historicalData={data.historicalData}
+        selectedYear={selectedYear}
+        lastYear={lastYear}
+      />
+
       {/* Efficiency Metrics */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.7 }}
+        transition={{ delay: 1.0 }}
       >
         <h4 className="text-sm font-bold text-muted-foreground mb-4 px-1 flex items-center gap-2 uppercase tracking-widest">
           Eficiência Operacional
@@ -824,7 +850,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.8 }}
+        transition={{ delay: 1.1 }}
       >
         <h4 className="text-sm font-bold text-muted-foreground mb-4 px-1 flex items-center gap-2 uppercase tracking-widest">
           Análise Inteligente
