@@ -12,10 +12,10 @@ import {
   Settings,
   Moon,
   Sun,
-  Target,
   UserPlus,
   PenTool,
-  Globe
+  Globe,
+  CalendarDays
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -40,8 +40,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   const navItems: { id: ViewState; label: string; icon: React.ReactNode; consultantOnly?: boolean }[] = [
     { id: 'agency-global', label: 'Visão Global Agência', icon: <Globe size={20} strokeWidth={1.5} className="text-cyan-500" />, consultantOnly: true },
     { id: 'dashboard', label: 'Visão Geral', icon: <LayoutDashboard size={20} strokeWidth={1.5} /> },
-    { id: 'input-center', label: 'Lançamentos', icon: <PenTool size={20} strokeWidth={1.5} className="text-emerald-500" /> },
-    { id: 'seasonality', label: 'Planejamento & Metas', icon: <Target size={20} strokeWidth={1.5} /> },
+    { id: 'seasonality', label: 'Sazonalidade', icon: <CalendarDays size={20} strokeWidth={1.5} /> },
     { id: 'team', label: 'Equipe', icon: <Users size={20} strokeWidth={1.5} /> },
     { id: 'pgv', label: 'PGV Semanal', icon: <BarChart3 size={20} strokeWidth={1.5} /> },
     { id: 'insights', label: 'Insights', icon: <Lightbulb size={20} strokeWidth={1.5} /> },
@@ -103,15 +102,27 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        <button
-          onClick={onOpenUpload}
-          className="w-full flex items-center gap-3 px-4 py-3 rounded-xl text-sm font-bold text-foreground hover:bg-card border border-dashed border-border hover:border-primary hover:text-primary transition-all shadow-sm group bg-card/50 hover:shadow-lg"
-        >
-          <div className="p-1.5 bg-muted rounded-lg group-hover:bg-primary/10 group-hover:text-primary transition-colors">
-            <Upload size={16} strokeWidth={2} />
-          </div>
-          <span>Upload Planilha</span>
-        </button>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            onClick={() => onChangeView('input-center')}
+            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium transition-all group ${
+              currentView === 'input-center'
+                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
+                : 'bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground border border-border hover:border-emerald-500/50'
+            }`}
+          >
+            <PenTool size={14} strokeWidth={2} className={currentView === 'input-center' ? 'text-emerald-500' : 'group-hover:text-emerald-500'} />
+            <span>Lançamentos</span>
+          </button>
+
+          <button
+            onClick={onOpenUpload}
+            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground border border-dashed border-border hover:border-primary transition-all group"
+          >
+            <Upload size={14} strokeWidth={2} className="group-hover:text-primary" />
+            <span>Upload</span>
+          </button>
+        </div>
 
         <p className="text-[9px] text-muted-foreground/50 text-center pt-1 font-mono">v2.0 • CI</p>
       </div>
