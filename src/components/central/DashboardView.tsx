@@ -416,58 +416,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           </div>
         </motion.div>
 
-        {/* Comparativo Ano vs Ano Anterior */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.3 }}
-          className="relative overflow-hidden rounded-2xl p-5 bg-card shadow-lg border border-border"
-        >
-          <div className="absolute top-0 right-0 w-20 h-20 bg-primary/5 rounded-full blur-2xl" />
-          
-          <div className="relative z-10">
-            <div className="flex justify-between items-start mb-2">
-              <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Comparativo
-                </p>
-                <p className="text-xs text-primary font-semibold">{selectedYear} vs {lastYear}</p>
-              </div>
-              <div className="p-2 rounded-lg bg-primary/10 text-primary">
-                <Percent size={16} />
-              </div>
-            </div>
-            
-            {(() => {
-              const growthPercent = comparisons.vsSameMonthLastYear;
-              const isPositive = growthPercent >= 0;
-              
-              return (
-                <>
-                  <h3 className={`text-xl font-black mb-2 ${
-                    isPositive ? 'text-emerald-600 dark:text-emerald-400' : 'text-red-600 dark:text-red-400'
-                  }`}>
-                    {isPositive ? '+' : ''}{growthPercent.toFixed(1)}%
-                  </h3>
-                  
-                  <div className="flex items-center gap-2">
-                    <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
-                      isPositive 
-                        ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                        : 'bg-red-500/20 text-red-600 dark:text-red-400'
-                    }`}>
-                      {isPositive ? (
-                        <><ArrowUpRight size={10} /> Crescimento</>
-                      ) : (
-                        <><ArrowDownRight size={10} /> Retração</>
-                      )}
-                    </span>
-                  </div>
-                </>
-              );
-            })()}
-          </div>
-        </motion.div>
 
         {/* Acumulado Ano */}
         <motion.div
