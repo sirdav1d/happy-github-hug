@@ -1,6 +1,6 @@
 import React, { useState, useMemo, useEffect, useCallback } from 'react';
 import {
-  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Area, ComposedChart, Bar, ReferenceLine, Line, Cell, ReferenceArea
+  XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, ReferenceLine, Cell
 } from 'recharts';
 import {
   TrendingUp, Target, Calendar, DollarSign, CreditCard, Users, Activity, Percent, ShoppingBag, Zap, ArrowUpRight, ArrowDownRight, ShoppingCart, Trophy, AlertTriangle
@@ -23,7 +23,7 @@ const formatCurrency = (val: number) =>
   new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL', maximumFractionDigits: 0 }).format(val);
 
 const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
-  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'annual' | 'comparative'>('monthly');
+  const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
   const { insights, isLoading: insightsLoading, fetchInsights } = useAIInsights();
 
   // Derivar anos dinamicamente dos dados disponíveis
@@ -216,8 +216,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
     return { totalRevenue, totalGoal, progressPercent, vsLastYear };
   }, [data, currentMonthMetrics, lastYear]);
 
-  // Chart data com previsão
+  // Chart data com % de meta atingida
   const chartData = useMemo(() => {
+    const calculateGoalPercent = (revenue: number, goal: number) => 
+      goal > 0 ? (revenue / goal) * 100 : 0;
+
     // Dados trimestrais
     if (period === 'quarterly') {
       const quarters = [
@@ -234,16 +237,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         const currentYearGoal = data.currentYearData
           .filter(d => q.months.includes(d.month))
           .reduce((sum, d) => sum + d.goal, 0);
-        const lastYearRevenue = data.historicalData
-          .filter(d => d.year === lastYear && q.months.includes(d.month))
-          .reduce((sum, d) => sum + d.revenue, 0);
         
         return {
           name: q.name,
           revenue: currentYearRevenue,
           goal: currentYearGoal,
-          lastYear: lastYearRevenue,
-          forecast: null as number | null,
+          goalPercent: calculateGoalPercent(currentYearRevenue, currentYearGoal),
         };
       });
     }
@@ -258,68 +257,32 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         
         const totalRevenue = yearData.reduce((acc, curr) => acc + curr.revenue, 0);
         const totalGoal = yearData.reduce((acc, curr) => acc + curr.goal, 0);
+        const effectiveGoal = totalGoal > 0 ? totalGoal : totalRevenue * 1.1;
         
         return { 
           name: year.toString(), 
           revenue: totalRevenue, 
-          goal: totalGoal > 0 ? totalGoal : totalRevenue * 1.1,
-          lastYear: 0,
-          forecast: null as number | null,
+          goal: effectiveGoal,
+          goalPercent: calculateGoalPercent(totalRevenue, effectiveGoal),
         };
       });
     }
 
-    // Comparativo: lado a lado ano atual vs anterior
-    if (period === 'comparative') {
-      const monthOrder = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
-      return monthOrder.map(month => {
-        const currentYearMonth = data.currentYearData.find(d => d.month === month);
-        const lastYearMonth = data.historicalData.find(d => d.year === lastYear && d.month === month);
-        return {
-          name: month,
-          [selectedYear.toString()]: currentYearMonth?.revenue || 0,
-          [lastYear.toString()]: lastYearMonth?.revenue || 0,
-          revenue: currentYearMonth?.revenue || 0,
-          lastYear: lastYearMonth?.revenue || 0,
-          goal: currentYearMonth?.goal || 0,
-          forecast: null as number | null,
-        };
-      });
-    }
+    // Mensal
+    return data.currentYearData.map(d => ({ 
+      name: d.month, 
+      revenue: d.revenue, 
+      goal: d.goal, 
+      goalPercent: calculateGoalPercent(d.revenue, d.goal),
+    }));
+  }, [period, data, availableYears, selectedYear]);
 
-    // Mensal com linha de previsão
-    const monthlyData = data.currentYearData.map(d => {
-      const lastYearMonth = data.historicalData.find(h => h.year === lastYear && h.month === d.month);
-      return { 
-        name: d.month, 
-        revenue: d.revenue, 
-        goal: d.goal, 
-        lastYear: lastYearMonth?.revenue || 0,
-        forecast: null as number | null,
-      };
-    });
-
-    // Adicionar previsão para meses futuros
-    let lastMonthWithRevenue = -1;
-    for (let i = monthlyData.length - 1; i >= 0; i--) {
-      if (monthlyData[i].revenue > 0) {
-        lastMonthWithRevenue = i;
-        break;
-      }
-    }
-    if (lastMonthWithRevenue >= 0 && lastMonthWithRevenue < monthlyData.length - 1) {
-      const avgGrowth = runRateMetrics.dailyAverage * 22; // Projeção mensal
-      for (let i = lastMonthWithRevenue; i < monthlyData.length; i++) {
-        if (i === lastMonthWithRevenue) {
-          monthlyData[i].forecast = runRateMetrics.projection;
-        } else {
-          monthlyData[i].forecast = avgGrowth;
-        }
-      }
-    }
-
-    return monthlyData;
-  }, [period, data, availableYears, selectedYear, lastYear, runRateMetrics]);
+  // Função para determinar cor da barra
+  const getBarColor = (goalPercent: number) => {
+    if (goalPercent >= 100) return '#10b981'; // emerald-500
+    if (goalPercent >= 80) return '#f59e0b'; // amber-500
+    return '#ef4444'; // red-500
+  };
 
   return (
     <div className="space-y-6 animate-fade-in">
@@ -542,14 +505,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
           <div>
             <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
-              <TrendingUp className="text-primary" size={20} />
-              Performance de Vendas {selectedYear}
+              <Target className="text-primary" size={20} />
+              Você bateu a meta?
             </h4>
             <p className="text-xs text-muted-foreground mt-1">
-              {period === 'monthly' && `Evolução mensal com meta e comparativo ${lastYear}`}
-              {period === 'quarterly' && `Evolução trimestral ${selectedYear} vs ${lastYear}`}
-              {period === 'annual' && 'Histórico anual de receita vs meta'}
-              {period === 'comparative' && `Comparativo lado a lado: ${lastYear} vs ${selectedYear}`}
+              {period === 'monthly' && `% de meta atingida por mês em ${selectedYear}`}
+              {period === 'quarterly' && `% de meta atingida por trimestre em ${selectedYear}`}
+              {period === 'annual' && '% de meta atingida por ano'}
             </p>
           </div>
           
@@ -558,11 +520,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
               { id: 'monthly', label: 'Mensal' },
               { id: 'quarterly', label: 'Trimestral' },
               { id: 'annual', label: 'Anual' },
-              { id: 'comparative', label: 'Comparativo' },
             ].map(p => (
               <button
                 key={p.id}
-                onClick={() => setPeriod(p.id as 'monthly' | 'quarterly' | 'annual' | 'comparative')}
+                onClick={() => setPeriod(p.id as 'monthly' | 'quarterly' | 'annual')}
                 className={`px-3 py-2 rounded-lg text-[10px] font-bold uppercase tracking-wider transition-all ${
                   period === p.id 
                     ? 'bg-primary text-primary-foreground shadow-md' 
@@ -575,53 +536,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           </div>
         </div>
 
-        <div className="h-80 w-full">
+        <div className="h-72 w-full">
           <ResponsiveContainer width="100%" height="100%">
-            <ComposedChart data={chartData} margin={{ top: 20, right: 20, left: -10, bottom: 10 }}>
-              <defs>
-                <linearGradient id="revenueGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                  <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0.05} />
-                </linearGradient>
-                <linearGradient id="goalGradient" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="hsl(var(--muted-foreground))" stopOpacity={0.1} />
-                </linearGradient>
-                <linearGradient id="aboveGoalZone" x1="0" y1="1" x2="0" y2="0">
-                  <stop offset="0%" stopColor="#10b981" stopOpacity={0.15} />
-                  <stop offset="100%" stopColor="#10b981" stopOpacity={0.05} />
-                </linearGradient>
-                <linearGradient id="belowGoalZone" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="0%" stopColor="#ef4444" stopOpacity={0.08} />
-                  <stop offset="100%" stopColor="#ef4444" stopOpacity={0.02} />
-                </linearGradient>
-              </defs>
-              
-              {/* Performance zones - Above and Below Goal */}
-              {period === 'monthly' && currentMonthMetrics.current.goal > 0 && (
-                <>
-                  <ReferenceArea
-                    y1={currentMonthMetrics.current.goal}
-                    y2={currentMonthMetrics.current.goal * 1.5}
-                    fill="url(#aboveGoalZone)"
-                    fillOpacity={1}
-                    label={{ 
-                      value: '✓ Acima da Meta', 
-                      position: 'insideTopRight',
-                      fill: '#10b981',
-                      fontSize: 9,
-                      fontWeight: 600,
-                      opacity: 0.7
-                    }}
-                  />
-                  <ReferenceArea
-                    y1={0}
-                    y2={currentMonthMetrics.current.goal}
-                    fill="url(#belowGoalZone)"
-                    fillOpacity={1}
-                  />
-                </>
-              )}
+            <BarChart data={chartData} margin={{ top: 30, right: 20, left: -10, bottom: 10 }}>
               <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="hsl(var(--border))" opacity={0.5} />
               <XAxis 
                 dataKey="name" 
@@ -631,11 +548,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
                 dy={10} 
               />
               <YAxis 
-                tickFormatter={(val) => `${(val / 1000).toFixed(0)}k`} 
+                tickFormatter={(val) => `${val}%`} 
                 tickLine={false} 
                 axisLine={false} 
                 tick={{ fill: 'hsl(var(--muted-foreground))', fontSize: 10 }} 
                 width={45}
+                domain={[0, 'auto']}
               />
               <Tooltip
                 content={({ active, payload, label }) => {
@@ -644,13 +562,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
                   const data = payload[0]?.payload;
                   const revenue = data?.revenue || 0;
                   const goal = data?.goal || 0;
-                  const lastYearValue = data?.lastYear || 0;
-                  const progressPercent = goal > 0 ? (revenue / goal) * 100 : 0;
-                  const vsLastYear = lastYearValue > 0 ? ((revenue - lastYearValue) / lastYearValue) * 100 : 0;
+                  const goalPercent = data?.goalPercent || 0;
                   
                   return (
-                    <div className="bg-card/95 backdrop-blur-lg border border-border rounded-xl p-4 shadow-xl min-w-[200px]">
-                      <p className="text-sm font-bold text-foreground mb-3 pb-2 border-b border-border">{label}/{selectedYear}</p>
+                    <div className="bg-card/95 backdrop-blur-lg border border-border rounded-xl p-4 shadow-xl min-w-[180px]">
+                      <p className="text-sm font-bold text-foreground mb-3 pb-2 border-b border-border">{label}</p>
                       
                       <div className="space-y-2">
                         <div className="flex items-center justify-between">
@@ -662,141 +578,73 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
                           <span className="text-sm font-medium text-muted-foreground">{formatCurrency(goal)}</span>
                         </div>
                         <div className="flex items-center justify-between pt-2 border-t border-border">
-                          <span className="text-xs text-muted-foreground">% da Meta</span>
+                          <span className="text-xs text-muted-foreground">% Atingido</span>
                           <span className={`text-sm font-bold ${
-                            progressPercent >= 100 ? 'text-emerald-500' : 
-                            progressPercent >= 80 ? 'text-amber-500' : 'text-red-500'
+                            goalPercent >= 100 ? 'text-emerald-500' : 
+                            goalPercent >= 80 ? 'text-amber-500' : 'text-red-500'
                           }`}>
-                            {progressPercent.toFixed(0)}%
+                            {goalPercent.toFixed(0)}%
                           </span>
                         </div>
-                        {period === 'monthly' && lastYearValue > 0 && (
-                          <div className="flex items-center justify-between">
-                            <span className="text-xs text-muted-foreground">vs {lastYear}</span>
-                            <span className={`text-sm font-bold ${vsLastYear >= 0 ? 'text-emerald-500' : 'text-red-500'}`}>
-                              {vsLastYear >= 0 ? '+' : ''}{vsLastYear.toFixed(1)}%
-                            </span>
-                          </div>
-                        )}
                       </div>
                     </div>
                   );
                 }}
               />
               
-              {/* Goal Reference Line */}
-              {period === 'monthly' && currentMonthMetrics.current.goal > 0 && (
-                <ReferenceLine 
-                  y={currentMonthMetrics.current.goal} 
-                  stroke="hsl(var(--primary))" 
-                  strokeDasharray="8 4" 
-                  strokeWidth={2}
-                  opacity={0.6}
-                  label={{ 
-                    value: `Meta: ${formatCurrency(currentMonthMetrics.current.goal)}`, 
-                    position: 'right',
-                    fill: 'hsl(var(--primary))',
-                    fontSize: 10,
-                    fontWeight: 600
-                  }}
-                />
-              )}
+              {/* Linha de referência em 100% */}
+              <ReferenceLine 
+                y={100} 
+                stroke="#10b981" 
+                strokeDasharray="8 4" 
+                strokeWidth={2}
+                label={{ 
+                  value: 'Meta 100%', 
+                  position: 'right',
+                  fill: '#10b981',
+                  fontSize: 10,
+                  fontWeight: 600
+                }}
+              />
               
-              {/* Goal bars with colored feedback */}
+              {/* Barras coloridas por performance */}
               <Bar 
-                dataKey="goal" 
-                fill="url(#goalGradient)" 
+                dataKey="goalPercent" 
                 radius={[6, 6, 0, 0]} 
-                opacity={0.7}
-                maxBarSize={40}
-              />
-              
-              {/* Last year line (for monthly, quarterly, and comparative views) */}
-              {(period === 'monthly' || period === 'quarterly' || period === 'comparative') && (
-                <Line
-                  type="monotone"
-                  dataKey="lastYear"
-                  stroke="hsl(var(--muted-foreground))"
-                  strokeWidth={period === 'comparative' ? 3 : 2}
-                  strokeDasharray={period === 'comparative' ? undefined : "6 3"}
-                  dot={period === 'comparative' || period === 'quarterly' ? { fill: 'hsl(var(--muted-foreground))', r: 4, strokeWidth: 2, stroke: 'hsl(var(--background))' } : false}
-                  opacity={period === 'comparative' || period === 'quarterly' ? 0.8 : 0.4}
-                  name={lastYear.toString()}
-                />
-              )}
-              
-              {/* Forecast line */}
-              {period === 'monthly' && (
-                <Line
-                  type="monotone"
-                  dataKey="forecast"
-                  stroke="#f59e0b"
-                  strokeWidth={3}
-                  strokeDasharray="10 5"
-                  dot={{ fill: '#f59e0b', r: 5, strokeWidth: 2, stroke: 'hsl(var(--card))' }}
-                  connectNulls={false}
-                />
-              )}
-              
-              {/* Revenue area with dynamic styling */}
-              <Area
-                type="monotone"
-                dataKey="revenue"
-                stroke="hsl(var(--primary))"
-                strokeWidth={3}
-                fill="url(#revenueGradient)"
-                activeDot={{ 
-                  r: 8, 
-                  stroke: 'hsl(var(--primary))', 
-                  strokeWidth: 3,
-                  fill: 'hsl(var(--background))'
+                maxBarSize={50}
+                label={{
+                  position: 'top',
+                  fill: 'hsl(var(--muted-foreground))',
+                  fontSize: 10,
+                  fontWeight: 600,
+                  formatter: (value: number) => value > 0 ? `${value.toFixed(0)}%` : ''
                 }}
-                dot={(props: any) => {
-                  const { cx, cy, payload } = props;
-                  if (!payload || payload.revenue === 0) return null;
-                  const isAboveGoal = payload.goal > 0 && payload.revenue >= payload.goal;
-                  return (
-                    <circle 
-                      cx={cx} 
-                      cy={cy} 
-                      r={isAboveGoal ? 6 : 4} 
-                      fill={isAboveGoal ? '#10b981' : 'hsl(var(--primary))'} 
-                      stroke="hsl(var(--background))" 
-                      strokeWidth={2}
-                    />
-                  );
-                }}
-              />
-            </ComposedChart>
+              >
+                {chartData.map((entry, index) => (
+                  <Cell 
+                    key={`cell-${index}`} 
+                    fill={getBarColor(entry.goalPercent)}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
           </ResponsiveContainer>
         </div>
 
-        {/* Chart Legend */}
+        {/* Chart Legend - Simples e claro */}
         <div className="flex flex-wrap items-center justify-center gap-6 mt-4 pt-4 border-t border-border">
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-primary shadow-sm" />
-            <span className="text-xs font-medium text-muted-foreground">Realizado</span>
+            <div className="w-4 h-4 rounded bg-emerald-500" />
+            <span className="text-xs font-medium text-muted-foreground">Acima da Meta (≥100%)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-3 rounded bg-muted-foreground/30" />
-            <span className="text-xs font-medium text-muted-foreground">Meta</span>
+            <div className="w-4 h-4 rounded bg-amber-500" />
+            <span className="text-xs font-medium text-muted-foreground">Atenção (80-99%)</span>
           </div>
           <div className="flex items-center gap-2">
-            <div className="w-4 h-4 rounded-full bg-emerald-500 shadow-sm" />
-            <span className="text-xs font-medium text-muted-foreground">Meta Batida</span>
+            <div className="w-4 h-4 rounded bg-red-500" />
+            <span className="text-xs font-medium text-muted-foreground">Abaixo ({"<"}80%)</span>
           </div>
-          {(period === 'monthly' || period === 'quarterly' || period === 'comparative') && (
-            <div className="flex items-center gap-2">
-              <div className={`w-6 h-0.5 bg-muted-foreground ${period === 'comparative' ? '' : 'opacity-40'}`} style={period === 'comparative' ? {} : { backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 3px, currentColor 3px, currentColor 6px)' }} />
-              <span className="text-xs font-medium text-muted-foreground">{lastYear}</span>
-            </div>
-          )}
-          {period === 'monthly' && (
-            <div className="flex items-center gap-2">
-              <div className="w-6 h-0.5 bg-amber-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 5px, #f59e0b 5px, #f59e0b 10px)' }} />
-              <span className="text-xs font-medium text-muted-foreground">Projeção</span>
-            </div>
-          )}
         </div>
       </motion.div>
 
