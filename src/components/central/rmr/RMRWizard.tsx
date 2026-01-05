@@ -327,7 +327,7 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                     <Select
                       value={wizardData.highlightedEmployeeId}
                       onValueChange={(value) => {
-                        const person = activeTeam.find(p => p.id === value);
+                        const person = activeTeam.find(p => String(p.id) === value);
                         setWizardData({
                           ...wizardData,
                           highlightedEmployeeId: value,
@@ -340,7 +340,7 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                       </SelectTrigger>
                       <SelectContent>
                         {activeTeam.map((person) => (
-                          <SelectItem key={person.id} value={person.id}>
+                          <SelectItem key={String(person.id)} value={String(person.id)}>
                             <div className="flex items-center justify-between w-full gap-4">
                               <span>{person.name}</span>
                               <span className="text-muted-foreground">

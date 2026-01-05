@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Trophy, Calendar, Star, Target, ArrowRight, Clock, CheckCircle, Plus } from "lucide-react";
+import { Trophy, Calendar, Star, Target, ArrowRight, Clock, CheckCircle, Plus, History } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,7 @@ import InfoTooltip from "../InfoTooltip";
 import { Salesperson } from "@/types";
 import { useRMR } from "@/hooks/useRMR";
 import RMRWizard from "./RMRWizard";
+import RMRRetroactiveForm from "./RMRRetroactiveForm";
 
 interface RMRViewProps {
   team: Salesperson[];
@@ -17,6 +18,7 @@ interface RMRViewProps {
 
 const RMRView = ({ team = [], previousMonthRevenue = 0, previousMonthGoal = 200000 }: RMRViewProps) => {
   const [showWizard, setShowWizard] = useState(false);
+  const [showRetroactiveForm, setShowRetroactiveForm] = useState(false);
   const { meetings, isLoading, getNextRMRDate, getLatestCompletedRMR } = useRMR();
   
   const lastRMR = getLatestCompletedRMR();
@@ -153,8 +155,8 @@ const RMRView = ({ team = [], previousMonthRevenue = 0, previousMonthGoal = 2000
         </Card>
       </motion.div>
 
-      {/* Card de Última RMR */}
-      {lastRMR && (
+      {/* Card de Última RMR ou Registrar Histórico */}
+      {lastRMR ? (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -199,6 +201,38 @@ const RMRView = ({ team = [], previousMonthRevenue = 0, previousMonthGoal = 2000
                   </div>
                 </div>
               )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      ) : (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <Card className="border-dashed border-2 border-amber-500/30 bg-amber-500/5">
+            <CardContent className="py-8">
+              <div className="flex flex-col md:flex-row items-center justify-between gap-6">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 rounded-xl bg-amber-500/10">
+                    <History className="h-8 w-8 text-amber-500" />
+                  </div>
+                  <div>
+                    <p className="font-semibold text-foreground text-lg">Registrar RMR do Mês Passado</p>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      A reunião já aconteceu? Registre os dados para manter o histórico completo e ativar as sugestões inteligentes.
+                    </p>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline" 
+                  className="border-amber-500/50 text-amber-600 hover:bg-amber-500/10 gap-2"
+                  onClick={() => setShowRetroactiveForm(true)}
+                >
+                  <History className="h-4 w-4" />
+                  Registrar Histórico
+                </Button>
+              </div>
             </CardContent>
           </Card>
         </motion.div>
@@ -359,6 +393,25 @@ const RMRView = ({ team = [], previousMonthRevenue = 0, previousMonthGoal = 2000
               previousMonthGoal={previousMonthGoal}
               lastRMR={lastRMR}
               onClose={() => setShowWizard(false)}
+            />
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* RMR Retroactive Form Modal */}
+      <AnimatePresence>
+        {showRetroactiveForm && (
+          <motion.div
+            key="rmr-retroactive-wrapper"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+          >
+            <RMRRetroactiveForm
+              team={team}
+              previousMonthRevenue={previousMonthRevenue}
+              previousMonthGoal={previousMonthGoal}
+              onClose={() => setShowRetroactiveForm(false)}
             />
           </motion.div>
         )}
