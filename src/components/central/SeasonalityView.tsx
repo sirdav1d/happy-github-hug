@@ -108,13 +108,17 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
     }
   } else {
     // Fallback: use revenue > 0 logic
-    const completedMonths = currentYearData.filter(d => d.revenue > 0);
-    lastCompletedMonthIndex = completedMonths.length > 0
-      ? monthOrder.indexOf(completedMonths[completedMonths.length - 1].month)
+    const fallbackCompleted = currentYearData.filter(d => d.revenue > 0);
+    lastCompletedMonthIndex = fallbackCompleted.length > 0
+      ? monthOrder.indexOf(fallbackCompleted[fallbackCompleted.length - 1].month)
       : -1;
   }
   
   const completedMonths = currentYearData.filter((_, idx) => idx <= lastCompletedMonthIndex);
+
+  // Detect if current year is complete (all 12 months realized)
+  const isCurrentYearComplete = lastCompletedMonthIndex === 11;
+  const projectionYear = isCurrentYearComplete ? currentDataYear + 1 : currentDataYear;
 
   // Calculate current year's average performance vs historical
   const currentYearPerformance = completedMonths.length > 0
@@ -130,12 +134,15 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
     const seasonal = seasonalityData.find(s => s.month === month);
     const isCompleted = index <= lastCompletedMonthIndex;
     
+    // When current year is complete, project ALL months for next year
+    const shouldShowProjection = isCurrentYearComplete ? true : !isCompleted;
+    
     return {
       month,
       actual: current?.revenue || 0,
       historicalAvg: seasonal?.avgRevenue || 0,
-      projected: !isCompleted && seasonal ? seasonal.avgRevenue * currentYearPerformance : null,
-      isCompleted,
+      projected: shouldShowProjection && seasonal ? seasonal.avgRevenue * currentYearPerformance : null,
+      isCompleted: isCurrentYearComplete ? false : isCompleted,
     };
   });
 
@@ -333,7 +340,7 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
                   />
                   <Bar 
                     dataKey="projected" 
-                    name="Projeção"
+                    name={`Projeção ${projectionYear}`}
                     fill="#f59e0b"
                     radius={[4, 4, 0, 0]}
                     maxBarSize={35}
@@ -359,7 +366,7 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-amber-500 opacity-70" />
-                <span className="text-xs font-medium text-muted-foreground">Projeção Sazonal</span>
+                <span className="text-xs font-medium text-muted-foreground">Projeção {projectionYear}</span>
               </div>
               <div className="flex items-center gap-2">
                 <div className="w-4 h-4 rounded bg-muted-foreground opacity-40" />
