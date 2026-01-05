@@ -13,6 +13,9 @@ import SeasonalityView from "@/components/central/SeasonalityView";
 import InsightsView from "@/components/central/InsightsView";
 import SettingsView from "@/components/central/SettingsView";
 import SalesEntryView from "@/components/central/SalesEntryView";
+import RMRView from "@/components/central/rmr/RMRView";
+import PGVSemanalView from "@/components/central/pgv/PGVSemanalView";
+import FIVIView from "@/components/central/fivi/FIVIView";
 import Sidebar from "@/components/central/Sidebar";
 import ChatAssistant from "@/components/central/ChatAssistant";
 import UploadModal from "@/components/central/UploadModal";
@@ -182,7 +185,11 @@ const AuthenticatedApp = () => {
       case "team":
         return <TeamView team={displayData.team} monthlyGoal={200000} />;
       case "pgv":
-        return <PGVView data={displayData} />;
+        return <PGVSemanalView team={displayData.team} monthlyGoal={displayData.kpis?.annualGoal ? displayData.kpis.annualGoal / 12 : 200000} />;
+      case "rmr":
+        return <RMRView team={displayData.team} />;
+      case "fivi":
+        return <FIVIView team={displayData.team} />;
       case "seasonality":
         return (
           <SeasonalityView

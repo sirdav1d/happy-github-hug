@@ -85,6 +85,8 @@ export type ViewState =
   | 'seasonality'
   | 'team'
   | 'pgv'
+  | 'rmr'
+  | 'fivi'
   | 'insights'
   | 'ai-summary'
   | 'glossary'
@@ -92,6 +94,83 @@ export type ViewState =
   | 'admin-users'
   | 'input-center'
   | 'agency-global';
+
+// ============ Rituais Types ============
+
+// RMR - Reunião de Metas e Reconhecimento
+export interface RMRMeeting {
+  id: string;
+  date: string;
+  month: number;
+  year: number;
+  status: 'scheduled' | 'completed' | 'pending';
+  highlightedEmployee?: string;
+  highlightReason?: string;
+  monthlyGoal: number;
+  previousMonthRevenue: number;
+  notes?: string;
+  motivationalTheme?: string;
+  strategies?: string[];
+}
+
+// PGV Semanal - Painel de Gestão à Vista
+export interface PGVWeekEntry {
+  salespersonId: string;
+  salespersonName: string;
+  dailyGoal: number;
+  weeklyGoal: number;
+  weeklyRealized: number;
+  monthlyAccumulated: number;
+  percentAchieved: number;
+}
+
+export interface PGVWeek {
+  weekNumber: number;
+  startDate: string;
+  endDate: string;
+  workingDays: number;
+  entries: PGVWeekEntry[];
+  totalGoal: number;
+  totalRealized: number;
+}
+
+export interface PGVMonth {
+  month: number;
+  year: number;
+  monthlyGoal: number;
+  weeks: PGVWeek[];
+  premiumPolicy?: PremiumPolicy;
+}
+
+export interface PremiumPolicy {
+  tiers: {
+    minPercent: number;
+    maxPercent: number;
+    reward: string;
+  }[];
+}
+
+// FIVI - Feedback Individual do Vendedor
+export interface FIVISession {
+  id: string;
+  salespersonId: string;
+  salespersonName: string;
+  date: string;
+  weekNumber: number;
+  // As 5 perguntas estratégicas
+  actionsExecuted: string;
+  improvementIdeas: string;
+  failedActions: string;
+  supportNeeded: string;
+  weeklyCommitment: number;
+  // Dados do PGV vinculados
+  weeklyGoal: number;
+  weeklyRealized: number;
+  previousCommitment?: number;
+  previousRealized?: number;
+  notes?: string;
+  status: 'scheduled' | 'completed' | 'cancelled';
+}
 
 export type UserRole = 'consultant' | 'business_owner';
 
