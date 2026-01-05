@@ -3,6 +3,12 @@ import { TrendingUp, TrendingDown, Calendar, BarChart3, Sparkles } from "lucide-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MonthlyData } from "@/types";
 import InfoTooltip from "./InfoTooltip";
+import SeasonalityIndexTable from "./seasonality/SeasonalityIndexTable";
+import RealVsPatternCard from "./seasonality/RealVsPatternCard";
+import StrategicRecommendations from "./seasonality/StrategicRecommendations";
+import SeasonalGoalDistribution from "./seasonality/SeasonalGoalDistribution";
+import PatternEvolution from "./seasonality/PatternEvolution";
+import VarianceAnalysis from "./seasonality/VarianceAnalysis";
 import {
   XAxis,
   YAxis,
@@ -17,10 +23,11 @@ import {
 interface SeasonalityViewProps {
   historicalData: MonthlyData[];
   currentYearData: MonthlyData[];
-  selectedMonth?: string; // Ex: "Dez-25"
+  selectedMonth?: string;
+  annualGoal?: number;
 }
 
-const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: SeasonalityViewProps) => {
+const SeasonalityView = ({ historicalData, currentYearData, selectedMonth, annualGoal = 0 }: SeasonalityViewProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -98,17 +105,13 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
   let lastCompletedMonthIndex = -1;
   if (parsedSelected) {
     if (parsedSelected.year > currentDataYear) {
-      // Selected month is from a future year, all months of currentYearData are complete
       lastCompletedMonthIndex = 11;
     } else if (parsedSelected.year === currentDataYear) {
-      // Same year: use selected month as cut-off
       lastCompletedMonthIndex = parsedSelected.monthIndex;
     } else {
-      // Selected month is from a past year, no months of currentYearData are complete
       lastCompletedMonthIndex = -1;
     }
   } else {
-    // Fallback: use revenue > 0 logic
     const fallbackCompleted = currentYearData.filter(d => d.revenue > 0);
     lastCompletedMonthIndex = fallbackCompleted.length > 0
       ? monthOrder.indexOf(fallbackCompleted[fallbackCompleted.length - 1].month)
@@ -116,8 +119,6 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
   }
   
   const completedMonths = currentYearData.filter((_, idx) => idx <= lastCompletedMonthIndex);
-
-  // Detect if current year is complete (all 12 months realized)
   const isCurrentYearComplete = lastCompletedMonthIndex === 11;
   const projectionYear = isCurrentYearComplete ? currentDataYear + 1 : currentDataYear;
 
@@ -129,14 +130,20 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
 
   const completedRevenue = completedMonths.reduce((sum, d) => sum + d.revenue, 0);
 
-  // Extrapolate annual revenue: if completed months represent X% of seasonal weight,
-  // total revenue would be proportionally larger
   const expectedAnnualRevenue = completedSeasonalWeight > 0
     ? (completedRevenue / completedSeasonalWeight) * 12
     : globalAvgRevenue * 12;
 
-  // Expected monthly base revenue
   const expectedMonthlyBase = expectedAnnualRevenue / 12;
+
+  // Calculate expected revenue by pattern for completed months
+  const expectedByPattern = completedMonths.reduce((sum, d) => {
+    const seasonal = seasonalityData.find(s => s.month === d.month);
+    return sum + (seasonal ? globalAvgRevenue * seasonal.index : 0);
+  }, 0);
+
+  // Current month index for recommendations
+  const currentMonthIndex = parsedSelected?.monthIndex ?? new Date().getMonth();
 
   // Forecast data: actual + projected using TRUE seasonality
   const forecastData = monthOrder.map((month, index) => {
@@ -144,10 +151,8 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
     const seasonal = seasonalityData.find(s => s.month === month);
     const isCompleted = index <= lastCompletedMonthIndex;
     
-    // When current year is complete, project ALL months for next year
     const shouldShowProjection = isCurrentYearComplete ? true : !isCompleted;
     
-    // TRUE SEASONALITY: distribute expected revenue using seasonal index
     const projectedValue = shouldShowProjection && seasonal 
       ? expectedMonthlyBase * seasonal.index 
       : null;
@@ -196,7 +201,7 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
       className="space-y-6"
     >
       {/* Header Stats */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -295,7 +300,16 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
         )}
       </div>
 
-      {/* Forecast Based on Seasonality - Bar Chart */}
+      {/* Real vs Pattern Card */}
+      {completedMonths.length > 0 && (
+        <RealVsPatternCard
+          currentYearRevenue={completedRevenue}
+          expectedByPattern={expectedByPattern}
+          completedMonthsCount={completedMonths.length}
+        />
+      )}
+
+      {/* Forecast Chart */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -393,6 +407,36 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Seasonality Index Table */}
+      <SeasonalityIndexTable 
+        seasonalityData={seasonalityData} 
+        formatCurrency={formatCurrency} 
+      />
+
+      {/* Strategic Recommendations */}
+      <StrategicRecommendations 
+        seasonalityData={seasonalityData} 
+        currentMonthIndex={currentMonthIndex} 
+      />
+
+      {/* Seasonal Goal Distribution */}
+      <SeasonalGoalDistribution 
+        seasonalityData={seasonalityData} 
+        annualGoal={annualGoal} 
+      />
+
+      {/* Pattern Evolution */}
+      <PatternEvolution 
+        historicalData={historicalData} 
+        monthOrder={monthOrder} 
+      />
+
+      {/* Variance Analysis */}
+      <VarianceAnalysis 
+        historicalData={historicalData} 
+        monthOrder={monthOrder} 
+      />
     </motion.div>
   );
 };

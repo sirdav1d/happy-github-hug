@@ -189,6 +189,7 @@ const AuthenticatedApp = () => {
             historicalData={displayData.historicalData}
             currentYearData={displayData.currentYearData}
             selectedMonth={displayData.selectedMonth}
+            annualGoal={displayData.kpis?.annualGoal || 0}
           />
         );
       case "insights":
