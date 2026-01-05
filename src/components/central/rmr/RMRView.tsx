@@ -153,6 +153,57 @@ const RMRView = ({ team = [], previousMonthRevenue = 0, previousMonthGoal = 2000
         </Card>
       </motion.div>
 
+      {/* Card de Última RMR */}
+      {lastRMR && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.15 }}
+        >
+          <Card className="bg-gradient-to-r from-primary/5 to-transparent border-primary/20">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Clock className="h-5 w-5 text-primary" />
+                Última RMR Realizada
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-3 gap-4">
+                <div>
+                  <p className="text-sm text-muted-foreground">Destaque</p>
+                  <p className="font-medium text-foreground">{lastRMR.highlighted_employee_name || "Não definido"}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Meta Definida</p>
+                  <p className="font-medium text-foreground">{formatCurrency(lastRMR.monthly_goal)}</p>
+                </div>
+                <div>
+                  <p className="text-sm text-muted-foreground">Tema</p>
+                  <p className="font-medium text-foreground">{lastRMR.motivational_theme || "Não definido"}</p>
+                </div>
+              </div>
+              {lastRMR.strategies && lastRMR.strategies.length > 0 && (
+                <div className="mt-4 pt-4 border-t border-border">
+                  <p className="text-sm text-muted-foreground mb-2">Estratégias definidas</p>
+                  <div className="flex flex-wrap gap-2">
+                    {lastRMR.strategies.slice(0, 3).map((strategy, idx) => (
+                      <Badge key={idx} variant="secondary" className="text-xs">
+                        {strategy}
+                      </Badge>
+                    ))}
+                    {lastRMR.strategies.length > 3 && (
+                      <Badge variant="outline" className="text-xs">
+                        +{lastRMR.strategies.length - 3} mais
+                      </Badge>
+                    )}
+                  </div>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
       {/* Grid de Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         <motion.div

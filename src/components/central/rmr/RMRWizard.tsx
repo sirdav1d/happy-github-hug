@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Target, Star, Sparkles, Calendar, FileText } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Target, Star, Sparkles, Calendar, FileText, Clock } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -56,15 +56,21 @@ const SUGGESTED_THEMES = [
 
 const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onClose }: RMRWizardProps) => {
   const [currentStep, setCurrentStep] = useState(1);
+  
+  // Sugerir crescimento de 10% sobre a última meta como base
+  const suggestedGoal = lastRMR?.monthly_goal 
+    ? Math.round(lastRMR.monthly_goal * 1.1) 
+    : previousMonthGoal;
+  
   const [wizardData, setWizardData] = useState<WizardData>({
     previousRevenue: previousMonthRevenue,
     previousGoal: previousMonthGoal,
     highlightedEmployeeId: "",
     highlightedEmployeeName: "",
     highlightReason: "",
-    motivationalTheme: "",
-    monthlyGoal: previousMonthGoal,
-    strategies: [],
+    motivationalTheme: lastRMR?.motivational_theme || "",
+    monthlyGoal: suggestedGoal,
+    strategies: lastRMR?.strategies || [],
     notes: "",
   });
   const [newStrategy, setNewStrategy] = useState("");
@@ -236,6 +242,30 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                   </div>
                   <Progress value={Math.min(percentAchieved, 100)} className="h-3" />
                 </div>
+
+                {/* Contexto da última RMR */}
+                {lastRMR && (
+                  <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
+                    <h4 className="font-medium mb-3 flex items-center gap-2">
+                      <Clock className="h-4 w-4 text-primary" />
+                      Contexto da Última RMR
+                    </h4>
+                    <div className="grid grid-cols-3 gap-3 text-sm">
+                      <div>
+                        <p className="text-muted-foreground">Destaque</p>
+                        <p className="font-medium">{lastRMR.highlighted_employee_name || "Não definido"}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Meta</p>
+                        <p className="font-medium">{formatCurrency(lastRMR.monthly_goal)}</p>
+                      </div>
+                      <div>
+                        <p className="text-muted-foreground">Tema</p>
+                        <p className="font-medium">{lastRMR.motivational_theme || "Não definido"}</p>
+                      </div>
+                    </div>
+                  </div>
+                )}
 
                 {/* Top performers summary */}
                 <div>

@@ -187,12 +187,25 @@ const AuthenticatedApp = () => {
       case "pgv":
         return <PGVSemanalView team={displayData.team} monthlyGoal={displayData.kpis?.annualGoal ? displayData.kpis.annualGoal / 12 : 200000} />;
       case "rmr":
-        const lastMonthData = displayData.historicalData[displayData.historicalData.length - 1];
+        // Buscar dados do mês anterior do ano atual
+        const currentMonth = new Date().getMonth(); // 0-indexed (Janeiro = 0)
+        const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        
+        let previousMonthData;
+        if (currentMonth === 0) {
+          // Se estamos em Janeiro, pegar Dezembro do ano anterior
+          previousMonthData = displayData.historicalData.find(d => d.month === "Dez");
+        } else {
+          // Pegar o mês anterior no ano atual
+          const prevMonthName = monthNames[currentMonth - 1];
+          previousMonthData = displayData.currentYearData.find(d => d.month === prevMonthName);
+        }
+        
         return (
           <RMRView 
             team={displayData.team} 
-            previousMonthRevenue={lastMonthData?.revenue || 0}
-            previousMonthGoal={lastMonthData?.goal || 200000}
+            previousMonthRevenue={previousMonthData?.revenue || 0}
+            previousMonthGoal={previousMonthData?.goal || 200000}
           />
         );
       case "fivi":
