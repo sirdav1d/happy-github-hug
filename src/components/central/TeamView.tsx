@@ -211,9 +211,6 @@ const TeamView = ({ team, monthlyGoal }: TeamViewProps) => {
         </motion.div>
       </div>
 
-      {/* Insights Cards */}
-      <TeamInsights team={team} />
-
       {/* Charts Section */}
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-6">
         <TeamPerformanceChart team={team} />
@@ -300,6 +297,15 @@ const TeamView = ({ team, monthlyGoal }: TeamViewProps) => {
           })}
         </CardContent>
       </Card>
+
+      {/* Análise e Recomendações - Insights ao final */}
+      <div className="space-y-4">
+        <h2 className="text-lg font-semibold text-foreground flex items-center gap-2">
+          Análise e Recomendações
+          <InfoTooltip text="Resumo executivo da performance da equipe com recomendações de ação." />
+        </h2>
+        <TeamInsights team={team} />
+      </div>
     </motion.div>
   );
 };
