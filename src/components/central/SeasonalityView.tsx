@@ -16,9 +16,10 @@ import {
 interface SeasonalityViewProps {
   historicalData: MonthlyData[];
   currentYearData: MonthlyData[];
+  selectedMonth?: string; // Ex: "Dez-25"
 }
 
-const SeasonalityView = ({ historicalData, currentYearData }: SeasonalityViewProps) => {
+const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: SeasonalityViewProps) => {
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
       style: "currency",
@@ -79,11 +80,41 @@ const SeasonalityView = ({ historicalData, currentYearData }: SeasonalityViewPro
     ? monthsWithData.reduce((prev, curr) => curr.index < prev.index ? curr : prev)
     : null;
 
+  // Parse selectedMonth (e.g., "Dez-25") to determine cut-off
+  const parseSelectedMonth = (selected: string | undefined) => {
+    if (!selected) return null;
+    const [monthAbbr, yearShort] = selected.split('-');
+    const monthIndex = monthOrder.indexOf(monthAbbr);
+    if (monthIndex === -1 || !yearShort) return null;
+    const year = 2000 + parseInt(yearShort);
+    return { monthIndex, year };
+  };
+
   // Forecast: project remaining months based on seasonality pattern
-  const completedMonths = currentYearData.filter(d => d.revenue > 0);
-  const lastCompletedMonthIndex = completedMonths.length > 0
-    ? monthOrder.indexOf(completedMonths[completedMonths.length - 1].month)
-    : -1;
+  const parsedSelected = parseSelectedMonth(selectedMonth);
+  const currentDataYear = currentYearData[0]?.year || new Date().getFullYear();
+
+  let lastCompletedMonthIndex = -1;
+  if (parsedSelected) {
+    if (parsedSelected.year > currentDataYear) {
+      // Selected month is from a future year, all months of currentYearData are complete
+      lastCompletedMonthIndex = 11;
+    } else if (parsedSelected.year === currentDataYear) {
+      // Same year: use selected month as cut-off
+      lastCompletedMonthIndex = parsedSelected.monthIndex;
+    } else {
+      // Selected month is from a past year, no months of currentYearData are complete
+      lastCompletedMonthIndex = -1;
+    }
+  } else {
+    // Fallback: use revenue > 0 logic
+    const completedMonths = currentYearData.filter(d => d.revenue > 0);
+    lastCompletedMonthIndex = completedMonths.length > 0
+      ? monthOrder.indexOf(completedMonths[completedMonths.length - 1].month)
+      : -1;
+  }
+  
+  const completedMonths = currentYearData.filter((_, idx) => idx <= lastCompletedMonthIndex);
 
   // Calculate current year's average performance vs historical
   const currentYearPerformance = completedMonths.length > 0

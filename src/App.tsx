@@ -188,6 +188,7 @@ const AuthenticatedApp = () => {
           <SeasonalityView
             historicalData={displayData.historicalData}
             currentYearData={displayData.currentYearData}
+            selectedMonth={displayData.selectedMonth}
           />
         );
       case "insights":
