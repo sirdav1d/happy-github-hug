@@ -120,15 +120,24 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
   const isCurrentYearComplete = lastCompletedMonthIndex === 11;
   const projectionYear = isCurrentYearComplete ? currentDataYear + 1 : currentDataYear;
 
-  // Calculate current year's average performance vs historical
-  const currentYearPerformance = completedMonths.length > 0
-    ? completedMonths.reduce((sum, d) => {
-        const historicalAvg = seasonalityData.find(s => s.month === d.month)?.avgRevenue || d.revenue;
-        return sum + (d.revenue / historicalAvg);
-      }, 0) / completedMonths.length
-    : 1;
+  // Calculate expected annual revenue based on completed months and their seasonal weights
+  const completedSeasonalWeight = completedMonths.reduce((sum, d) => {
+    const seasonalIndex = seasonalityData.find(s => s.month === d.month)?.index || 1;
+    return sum + seasonalIndex;
+  }, 0);
 
-  // Forecast data: actual + projected
+  const completedRevenue = completedMonths.reduce((sum, d) => sum + d.revenue, 0);
+
+  // Extrapolate annual revenue: if completed months represent X% of seasonal weight,
+  // total revenue would be proportionally larger
+  const expectedAnnualRevenue = completedSeasonalWeight > 0
+    ? (completedRevenue / completedSeasonalWeight) * 12
+    : globalAvgRevenue * 12;
+
+  // Expected monthly base revenue
+  const expectedMonthlyBase = expectedAnnualRevenue / 12;
+
+  // Forecast data: actual + projected using TRUE seasonality
   const forecastData = monthOrder.map((month, index) => {
     const current = currentYearData.find(d => d.month === month);
     const seasonal = seasonalityData.find(s => s.month === month);
@@ -137,11 +146,16 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
     // When current year is complete, project ALL months for next year
     const shouldShowProjection = isCurrentYearComplete ? true : !isCompleted;
     
+    // TRUE SEASONALITY: distribute expected revenue using seasonal index
+    const projectedValue = shouldShowProjection && seasonal 
+      ? expectedMonthlyBase * seasonal.index 
+      : null;
+    
     return {
       month,
       actual: current?.revenue || 0,
       historicalAvg: seasonal?.avgRevenue || 0,
-      projected: shouldShowProjection && seasonal ? seasonal.avgRevenue * currentYearPerformance : null,
+      projected: projectedValue,
       isCompleted: isCurrentYearComplete ? false : isCompleted,
     };
   });
@@ -292,7 +306,7 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
               Previsão Baseada em Sazonalidade
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Comparativo: Realizado vs Projeção vs Média Histórica — Desempenho atual: {(currentYearPerformance * 100).toFixed(0)}% do histórico
+              Projeção baseada no padrão sazonal histórico — Receita anual esperada: {formatCurrency(expectedAnnualRevenue)}
             </p>
           </CardHeader>
           <CardContent>
