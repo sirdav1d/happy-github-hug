@@ -65,12 +65,19 @@ const VarianceAnalysis = ({ historicalData, monthOrder }: VarianceAnalysisProps)
             <Activity className="h-5 w-5 text-primary" />
             Análise de Variância
             <InfoTooltip 
-              text="Mostra quão previsível é a receita de cada mês baseado na variação histórica. Meses com alta previsibilidade têm desempenho consistente, enquanto meses com baixa previsibilidade são mais voláteis." 
+              text="Mostra quão previsível é a receita de cada mês baseado na variação histórica. Meses com alta previsibilidade têm desempenho consistente, enquanto meses com baixa previsibilidade são mais voláteis."
               maxWidth={340} 
             />
           </CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Previsibilidade geral: {avgCV < 15 ? "Alta" : avgCV < 30 ? "Média" : "Baixa"} (CV médio: {avgCV.toFixed(1)}%)
+          <p className="text-sm text-muted-foreground flex items-center gap-1 flex-wrap">
+            Previsibilidade geral: {avgCV < 15 ? "Alta" : avgCV < 30 ? "Média" : "Baixa"} 
+            <span className="inline-flex items-center gap-1">
+              (CV médio: {avgCV.toFixed(1)}%
+              <InfoTooltip 
+                text="CV (Coeficiente de Variação) mede o quanto a receita varia de ano para ano. Calculado como: (Desvio Padrão ÷ Média) × 100. Quanto menor o CV, mais previsível é a receita." 
+                maxWidth={300} 
+              />)
+            </span>
           </p>
         </CardHeader>
         <CardContent>
@@ -105,6 +112,23 @@ const VarianceAnalysis = ({ historicalData, monthOrder }: VarianceAnalysisProps)
                 </motion.div>
               );
             })}
+          </div>
+
+          {/* Legenda explicativa */}
+          <div className="flex flex-wrap items-center gap-4 text-xs text-muted-foreground bg-muted/20 rounded-lg p-3 mb-4">
+            <span className="font-medium">Legenda CV:</span>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-emerald-500" />
+              <span>&lt;15% = Alta previsibilidade</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-amber-500" />
+              <span>15-30% = Média</span>
+            </div>
+            <div className="flex items-center gap-1.5">
+              <div className="w-2.5 h-2.5 rounded-full bg-red-400" />
+              <span>&gt;30% = Baixa previsibilidade</span>
+            </div>
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-4 border-t border-border">
@@ -149,6 +173,15 @@ const VarianceAnalysis = ({ historicalData, monthOrder }: VarianceAnalysisProps)
                 Considere metas mais flexíveis e planos de contingência.
               </p>
             </div>
+          </div>
+
+          {/* Texto educativo */}
+          <div className="mt-4 pt-4 border-t border-border">
+            <p className="text-xs text-muted-foreground leading-relaxed">
+              <strong className="text-foreground">O que é CV?</strong> O Coeficiente de Variação mede o quanto a receita de cada mês oscila ao longo dos anos. 
+              Um CV baixo significa que você pode confiar mais nas projeções para aquele mês. 
+              Um CV alto indica que o mês é imprevisível — requer mais cautela no planejamento, reservas de caixa e metas flexíveis.
+            </p>
           </div>
         </CardContent>
       </Card>
