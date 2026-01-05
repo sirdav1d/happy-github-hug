@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Trophy, Target, Zap, Calculator } from 'lucide-react';
 import { MonthlyData } from '@/types';
+import InfoTooltip from '../InfoTooltip';
 
 interface ComparativeInsightsProps {
   currentYearData: MonthlyData[];
@@ -80,6 +81,7 @@ const ComparativeInsights = ({
         : `${insights.bestMonthVsGoal.toFixed(0)}% vs meta`,
       badgeColor: insights.bestMonthVsGoal >= 0 ? 'emerald' : 'red',
       iconBg: 'bg-amber-500/10 text-amber-500',
+      tooltip: 'Mês com o maior faturamento registrado no ano. O badge mostra a diferença percentual em relação à meta daquele mês.',
     },
     {
       icon: Target,
@@ -91,6 +93,7 @@ const ComparativeInsights = ({
         : '-',
       badgeColor: insights.monthsAboveGoal >= insights.totalMonths / 2 ? 'emerald' : 'amber',
       iconBg: 'bg-primary/10 text-primary',
+      tooltip: 'Contagem de quantos meses você atingiu ou superou a meta estabelecida. Indica consistência na execução.',
     },
     {
       icon: insights.growthVsLastYear >= 0 ? TrendingUp : TrendingDown,
@@ -102,6 +105,7 @@ const ComparativeInsights = ({
       iconBg: insights.growthVsLastYear >= 0 
         ? 'bg-emerald-500/10 text-emerald-500' 
         : 'bg-red-500/10 text-red-500',
+      tooltip: 'Comparação do faturamento acumulado no mesmo período entre os dois anos. Mostra se o negócio está crescendo ou retraindo.',
     },
   ];
 
@@ -143,9 +147,12 @@ const ComparativeInsights = ({
                 </span>
               </div>
               
-              <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground mb-1">
-                {card.title}
-              </p>
+              <div className="flex items-center gap-1">
+                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                  {card.title}
+                </p>
+                <InfoTooltip text={card.tooltip} size="sm" />
+              </div>
               <p className="text-xl font-bold text-foreground mb-1">
                 {card.value}
               </p>

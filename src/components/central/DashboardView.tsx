@@ -317,9 +317,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-                  Meta Prevista
-                </p>
+                <div className="flex items-center gap-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+                    Meta Prevista
+                  </p>
+                  <InfoTooltip text="Meta mensal calculada a partir da sua meta anual, distribuída proporcionalmente. É o valor que você precisa vender para manter o ritmo de crescimento desejado." />
+                </div>
                 <p className="text-xs text-primary font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
               </div>
               <div className="p-2 rounded-lg bg-primary/10 text-primary">
@@ -363,6 +366,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
             type: 'percentage',
           } : undefined}
           delay={1}
+          tooltip="Soma de todas as vendas registradas no mês atual. A comparação mostra a variação percentual em relação ao mês anterior."
         />
 
         {/* Falta p/ Meta */}
@@ -377,9 +381,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
-                  Falta p/ Meta
-                </p>
+                <div className="flex items-center gap-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-amber-400">
+                    Falta p/ Meta
+                  </p>
+                  <InfoTooltip text="Valor monetário que ainda falta para atingir a meta do mês. Os dias úteis são calculados excluindo finais de semana." />
+                </div>
                 <p className="text-xs text-slate-400 font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
               </div>
               <div className="p-2 rounded-lg bg-amber-500/20 text-amber-400">
@@ -429,9 +436,12 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
           <div className="relative z-10">
             <div className="flex justify-between items-start mb-2">
               <div>
-                <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
-                  Acumulado
-                </p>
+                <div className="flex items-center gap-1">
+                  <p className="text-[10px] font-bold uppercase tracking-wider text-indigo-200">
+                    Acumulado
+                  </p>
+                  <InfoTooltip text="Soma de todas as vendas do ano até o mês atual. A comparação mostra o crescimento em relação ao mesmo período do ano anterior." />
+                </div>
                 <p className="text-xs text-indigo-300 font-semibold">{selectedYear}</p>
               </div>
               <div className="p-2 rounded-lg bg-white/10 text-indigo-200">
@@ -472,6 +482,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
             <h4 className="text-lg font-bold text-foreground flex items-center gap-2">
               <Target className="text-primary" size={20} />
               Você bateu a meta?
+              <InfoTooltip text="Gráfico de performance mensal. Barras verdes = meta atingida (≥100%). Amarelas = atenção (80-99%). Vermelhas = abaixo de 80%. A linha pontilhada marca o objetivo de 100%." />
             </h4>
             <p className="text-xs text-muted-foreground mt-1">
               {period === 'monthly' && `% de meta atingida por mês em ${selectedYear}`}
@@ -634,11 +645,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         </h4>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
-            { icon: <CreditCard size={16} />, label: 'Ticket Médio', value: data.kpis.averageTicket, format: formatCurrency },
-            { icon: <Percent size={16} />, label: 'Conversão', value: data.kpis.conversionRate, format: (v: number) => `${v.toFixed(1)}%` },
-            { icon: <Users size={16} />, label: 'CAC', value: data.kpis.cac, format: formatCurrency },
-            { icon: <Activity size={16} />, label: 'LTV Estimado', value: data.kpis.ltv, format: formatCurrency },
-            { icon: <ShoppingBag size={16} />, label: 'Vendas Totais', value: data.kpis.totalSalesCount, format: (v: number) => Math.round(v).toString() },
+            { icon: <CreditCard size={16} />, label: 'Ticket Médio', value: data.kpis.averageTicket, format: formatCurrency, tooltip: 'Receita total dividida pelo número de vendas. Um ticket maior significa vendas de maior valor.' },
+            { icon: <Percent size={16} />, label: 'Conversão', value: data.kpis.conversionRate, format: (v: number) => `${v.toFixed(1)}%`, tooltip: 'Percentual de atendimentos que resultaram em vendas. Calculado como: (vendas ÷ atendimentos) × 100.' },
+            { icon: <Users size={16} />, label: 'CAC', value: data.kpis.cac, format: formatCurrency, tooltip: 'Custo de Aquisição de Cliente: quanto você gasta em marketing e vendas para conquistar cada novo cliente.' },
+            { icon: <Activity size={16} />, label: 'LTV Estimado', value: data.kpis.ltv, format: formatCurrency, tooltip: 'Lifetime Value: receita média estimada que um cliente gera ao longo do relacionamento com sua empresa.' },
+            { icon: <ShoppingBag size={16} />, label: 'Vendas Totais', value: data.kpis.totalSalesCount, format: (v: number) => Math.round(v).toString(), tooltip: 'Quantidade de vendas realizadas no período, independente do valor de cada uma.' },
           ].map((metric, idx) => (
             <div
               key={metric.label}
@@ -647,6 +658,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
               <div className="flex items-center gap-2 text-muted-foreground">
                 {metric.icon}
                 <span className="text-[9px] font-bold uppercase tracking-wider">{metric.label}</span>
+                <InfoTooltip text={metric.tooltip} size="sm" />
               </div>
               <span className="text-lg font-bold text-foreground">{metric.format(metric.value)}</span>
             </div>

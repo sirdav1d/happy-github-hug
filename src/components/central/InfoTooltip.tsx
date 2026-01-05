@@ -1,18 +1,50 @@
 import React from 'react';
-import { Info } from 'lucide-react';
+import { Info, HelpCircle } from 'lucide-react';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
 
 interface InfoTooltipProps {
   text: string;
+  variant?: 'info' | 'help';
+  maxWidth?: number;
+  size?: 'sm' | 'md';
 }
 
-const InfoTooltip: React.FC<InfoTooltipProps> = ({ text }) => {
+const InfoTooltip: React.FC<InfoTooltipProps> = ({ 
+  text, 
+  variant = 'info',
+  maxWidth = 280,
+  size = 'sm'
+}) => {
+  const Icon = variant === 'help' ? HelpCircle : Info;
+  const iconSize = size === 'sm' ? 14 : 16;
+  
   return (
-    <div className="group relative inline-block ml-1 align-middle">
-      <Info size={14} className="text-muted-foreground cursor-help hover:text-primary transition-colors" />
-      <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 w-48 p-2 bg-popover text-popover-foreground text-xs rounded-lg opacity-0 invisible group-hover:opacity-100 group-hover:visible transition-all z-50 text-center shadow-lg pointer-events-none border border-border after:content-[''] after:absolute after:top-full after:left-1/2 after:-translate-x-1/2 after:border-4 after:border-transparent after:border-t-popover">
-        {text}
-      </div>
-    </div>
+    <TooltipProvider delayDuration={200}>
+      <Tooltip>
+        <TooltipTrigger asChild>
+          <button 
+            type="button"
+            className="inline-flex items-center justify-center ml-1 align-middle text-muted-foreground hover:text-primary transition-colors cursor-help focus:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-full"
+            aria-label="Mais informações"
+          >
+            <Icon size={iconSize} />
+          </button>
+        </TooltipTrigger>
+        <TooltipContent 
+          side="top" 
+          align="center"
+          className="z-50 px-3 py-2 text-xs leading-relaxed text-center"
+          style={{ maxWidth: `${maxWidth}px` }}
+        >
+          {text}
+        </TooltipContent>
+      </Tooltip>
+    </TooltipProvider>
   );
 };
 

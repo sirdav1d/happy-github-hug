@@ -2,6 +2,7 @@ import { motion } from "framer-motion";
 import { TrendingUp, TrendingDown, Calendar, BarChart3, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MonthlyData } from "@/types";
+import InfoTooltip from "./InfoTooltip";
 import {
   XAxis,
   YAxis,
@@ -203,8 +204,9 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
         >
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 Anos Históricos
+                <InfoTooltip text="Quantidade de anos com dados históricos usados para calcular o padrão de sazonalidade." />
               </CardTitle>
               <Calendar className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -304,6 +306,7 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth }: Sea
             <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
               <Sparkles className="h-5 w-5 text-amber-500" />
               Previsão Baseada em Sazonalidade
+              <InfoTooltip text="Projeção de receita futura baseada no padrão histórico de cada mês. O índice sazonal indica se um mês tende a ser mais forte (>1) ou mais fraco (<1) que a média." maxWidth={320} />
             </CardTitle>
             <p className="text-sm text-muted-foreground">
               Projeção baseada no padrão sazonal histórico — Receita anual esperada: {formatCurrency(expectedAnnualRevenue)}

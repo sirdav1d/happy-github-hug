@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { motion } from 'framer-motion';
 import { ResponsiveContainer, AreaChart, Area } from 'recharts';
+import InfoTooltip from '../InfoTooltip';
 
 interface SparklineData {
   value: number;
@@ -28,6 +29,7 @@ interface MetricCardProps {
   accentColor?: string;
   delay?: number;
   sparkline?: SparklineData[];
+  tooltip?: string;
 }
 
 const AnimatedCounter = ({ 
@@ -64,6 +66,7 @@ const MetricCard: React.FC<MetricCardProps> = ({
   accentColor = 'primary',
   delay = 0,
   sparkline,
+  tooltip,
 }) => {
   const isPositive = comparison?.value ? comparison.value >= 0 : true;
   const TrendIcon = comparison?.value 
@@ -90,9 +93,12 @@ const MetricCard: React.FC<MetricCardProps> = ({
       {/* Header */}
       <div className="flex justify-between items-start mb-3">
         <div className="flex-1">
-          <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
-            {title}
-          </p>
+          <div className="flex items-center gap-1">
+            <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
+              {title}
+            </p>
+            {tooltip && <InfoTooltip text={tooltip} size="sm" />}
+          </div>
           {subtitle && (
             <span className="text-[9px] px-1.5 py-0.5 rounded bg-muted text-muted-foreground mt-1 inline-block">
               {subtitle}

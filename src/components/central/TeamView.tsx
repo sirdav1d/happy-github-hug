@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Salesperson } from "@/types";
 import { cn } from "@/lib/utils";
+import InfoTooltip from "./InfoTooltip";
 
 interface TeamViewProps {
   team: Salesperson[];
@@ -72,8 +73,9 @@ const TeamView = ({ team, monthlyGoal }: TeamViewProps) => {
         >
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 Performance da Equipe
+                <InfoTooltip text="Percentual do realizado em relação à meta total da equipe. Mostra o desempenho coletivo no período." />
               </CardTitle>
               <Target className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -95,8 +97,9 @@ const TeamView = ({ team, monthlyGoal }: TeamViewProps) => {
         >
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 Membros Ativos
+                <InfoTooltip text="Total de vendedores ativos na equipe que possuem metas e vendas registradas." />
               </CardTitle>
               <Users className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
@@ -115,8 +118,9 @@ const TeamView = ({ team, monthlyGoal }: TeamViewProps) => {
           >
             <Card className="bg-card border-border">
               <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-medium text-muted-foreground">
+                <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                   Top Performer
+                  <InfoTooltip text="Vendedor com maior faturamento no período. Destaque da equipe." />
                 </CardTitle>
                 <Award className="h-4 w-4 text-amber-500" />
               </CardHeader>

@@ -4,6 +4,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { DashboardData, MonthlyData } from "@/types";
 import { cn } from "@/lib/utils";
+import InfoTooltip from "./InfoTooltip";
 
 interface PGVViewProps {
   data: DashboardData;
@@ -69,8 +70,9 @@ const PGVView = ({ data }: PGVViewProps) => {
         <Card className="bg-card border-border">
           <CardHeader>
             <div className="flex items-center justify-between">
-              <CardTitle className="text-xl font-semibold text-foreground">
+              <CardTitle className="text-xl font-semibold text-foreground flex items-center gap-2">
                 Plano de Gestão de Vendas
+                <InfoTooltip text="Visão consolidada do seu planejamento anual de vendas. Mostra quanto já foi realizado, quanto falta, e se o ritmo atual é suficiente para bater a meta." maxWidth={320} />
               </CardTitle>
               <div className={cn("flex items-center gap-2", getStatusColor())}>
                 <StatusIcon className="h-5 w-5" />
@@ -128,8 +130,9 @@ const PGVView = ({ data }: PGVViewProps) => {
         >
           <Card className="bg-card border-border">
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 Projeção Anual
+                <InfoTooltip text="Estimativa de faturamento anual baseada na média mensal realizada até agora, projetada para 12 meses." />
               </CardTitle>
               <TrendingUp className="h-4 w-4 text-muted-foreground" />
             </CardHeader>
