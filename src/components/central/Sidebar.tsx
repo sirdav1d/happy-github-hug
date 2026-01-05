@@ -16,7 +16,10 @@ import {
   UserPlus,
   PenTool,
   Globe,
-  CalendarDays
+  CalendarDays,
+  Trophy,
+  MessageSquare,
+  ClipboardList
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -61,7 +64,15 @@ const Sidebar: React.FC<SidebarProps> = ({
         { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
         { id: 'seasonality', label: 'Sazonalidade', icon: CalendarDays },
         { id: 'team', label: 'Equipe', icon: Users },
-        { id: 'pgv', label: 'PGV Semanal', icon: BarChart3 },
+      ]
+    },
+    {
+      label: 'Rituais',
+      showSeparator: true,
+      items: [
+        { id: 'rmr', label: 'RMR', icon: Trophy, iconClass: 'text-amber-500' },
+        { id: 'pgv', label: 'PGV Semanal', icon: ClipboardList, iconClass: 'text-emerald-500' },
+        { id: 'fivi', label: 'FIVI', icon: MessageSquare, iconClass: 'text-violet-500' },
       ]
     },
     {
