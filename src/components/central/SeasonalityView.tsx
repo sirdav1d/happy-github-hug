@@ -1,20 +1,16 @@
 import { motion } from "framer-motion";
-import { TrendingUp, TrendingDown, Calendar, BarChart3, Target, Sparkles } from "lucide-react";
+import { TrendingUp, TrendingDown, Calendar, BarChart3, Sparkles } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MonthlyData } from "@/types";
 import {
-  AreaChart,
-  Area,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
   BarChart,
   Bar,
   ReferenceLine,
-  Cell,
 } from "recharts";
 
 interface SeasonalityViewProps {
@@ -245,7 +241,7 @@ const SeasonalityView = ({ historicalData, currentYearData }: SeasonalityViewPro
         )}
       </div>
 
-      {/* Seasonality Index Chart */}
+      {/* Forecast Based on Seasonality - Bar Chart */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -254,111 +250,20 @@ const SeasonalityView = ({ historicalData, currentYearData }: SeasonalityViewPro
         <Card className="bg-card border-border">
           <CardHeader>
             <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Target className="h-5 w-5 text-primary" />
-              Índice de Sazonalidade
+              <Sparkles className="h-5 w-5 text-amber-500" />
+              Previsão Baseada em Sazonalidade
             </CardTitle>
             <p className="text-sm text-muted-foreground">
-              Índice &gt; 1.0 = mês naturalmente forte | Índice &lt; 1.0 = mês naturalmente fraco
+              Comparativo: Realizado vs Projeção vs Média Histórica — Desempenho atual: {(currentYearPerformance * 100).toFixed(0)}% do histórico
             </p>
           </CardHeader>
           <CardContent>
-            <div className="h-[280px] w-full">
+            <div className="h-[350px] w-full">
               <ResponsiveContainer width="100%" height="100%">
                 <BarChart
-                  data={seasonalityData}
+                  data={forecastData}
                   margin={{ top: 20, right: 30, left: 0, bottom: 10 }}
                 >
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={10}
-                    tickLine={false}
-                    axisLine={false}
-                    domain={[0, 'auto']}
-                    tickFormatter={(val) => `${val.toFixed(1)}x`}
-                  />
-                  <ReferenceLine 
-                    y={1} 
-                    stroke="hsl(var(--primary))" 
-                    strokeDasharray="8 4" 
-                    strokeWidth={2}
-                    label={{ 
-                      value: 'Média (1.0x)', 
-                      position: 'right',
-                      fill: 'hsl(var(--primary))',
-                      fontSize: 10,
-                      fontWeight: 600
-                    }}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Bar 
-                    dataKey="index" 
-                    name="Índice" 
-                    radius={[6, 6, 0, 0]}
-                    maxBarSize={40}
-                  >
-                    {seasonalityData.map((entry, index) => (
-                      <Cell 
-                        key={`cell-${index}`} 
-                        fill={entry.index >= 1 ? '#10b981' : '#f59e0b'} 
-                      />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-            
-            {/* Legend */}
-            <div className="flex flex-wrap items-center justify-center gap-6 mt-4 pt-4 border-t border-border">
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-emerald-500" />
-                <span className="text-xs font-medium text-muted-foreground">Acima da média (naturalmente forte)</span>
-              </div>
-              <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded bg-amber-500" />
-                <span className="text-xs font-medium text-muted-foreground">Abaixo da média (oportunidade)</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Historical Average Pattern */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.4 }}
-      >
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <BarChart3 className="h-5 w-5 text-primary" />
-              Padrão Histórico de Receita
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Média de receita por mês considerando todos os anos históricos
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={seasonalityData}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="colorAvgRevenue" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
                   <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
                   <XAxis 
                     dataKey="month" 
@@ -380,123 +285,53 @@ const SeasonalityView = ({ historicalData, currentYearData }: SeasonalityViewPro
                     stroke="hsl(var(--muted-foreground))" 
                     strokeDasharray="6 3" 
                     strokeWidth={1}
-                    opacity={0.5}
+                    opacity={0.6}
+                    label={{ 
+                      value: 'Média Global', 
+                      position: 'right',
+                      fill: 'hsl(var(--muted-foreground))',
+                      fontSize: 10
+                    }}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="avgRevenue"
-                    name="Média Histórica"
-                    stroke="hsl(var(--primary))"
-                    fillOpacity={1}
-                    fill="url(#colorAvgRevenue)"
-                    strokeWidth={3}
-                    dot={{ fill: 'hsl(var(--primary))', r: 4, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
-                  />
-                </AreaChart>
-              </ResponsiveContainer>
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
-
-      {/* Forecast Based on Seasonality */}
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ delay: 0.5 }}
-      >
-        <Card className="bg-card border-border">
-          <CardHeader>
-            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Sparkles className="h-5 w-5 text-amber-500" />
-              Previsão Baseada em Sazonalidade
-            </CardTitle>
-            <p className="text-sm text-muted-foreground">
-              Projeção dos próximos meses baseada no padrão histórico e desempenho atual ({(currentYearPerformance * 100).toFixed(0)}% vs histórico)
-            </p>
-          </CardHeader>
-          <CardContent>
-            <div className="h-[300px] w-full">
-              <ResponsiveContainer width="100%" height="100%">
-                <AreaChart
-                  data={forecastData}
-                  margin={{ top: 10, right: 30, left: 0, bottom: 0 }}
-                >
-                  <defs>
-                    <linearGradient id="colorActual" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="hsl(var(--primary))" stopOpacity={0.4} />
-                      <stop offset="95%" stopColor="hsl(var(--primary))" stopOpacity={0} />
-                    </linearGradient>
-                    <linearGradient id="colorProjected" x1="0" y1="0" x2="0" y2="1">
-                      <stop offset="5%" stopColor="#f59e0b" stopOpacity={0.3} />
-                      <stop offset="95%" stopColor="#f59e0b" stopOpacity={0} />
-                    </linearGradient>
-                  </defs>
-                  <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" vertical={false} />
-                  <XAxis 
-                    dataKey="month" 
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={11}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <YAxis
-                    stroke="hsl(var(--muted-foreground))"
-                    fontSize={10}
-                    tickFormatter={formatCompact}
-                    tickLine={false}
-                    axisLine={false}
-                  />
-                  <Tooltip content={<CustomTooltip />} />
-                  <Legend />
-                  <Area
-                    type="monotone"
-                    dataKey="actual"
+                  <Bar 
+                    dataKey="actual" 
                     name={`Realizado ${currentYear}`}
-                    stroke="hsl(var(--primary))"
-                    fillOpacity={1}
-                    fill="url(#colorActual)"
-                    strokeWidth={3}
-                    dot={{ fill: 'hsl(var(--primary))', r: 4, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
+                    fill="hsl(var(--primary))"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={35}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="projected"
+                  <Bar 
+                    dataKey="projected" 
                     name="Projeção"
-                    stroke="#f59e0b"
-                    fillOpacity={1}
-                    fill="url(#colorProjected)"
-                    strokeWidth={3}
-                    strokeDasharray="8 4"
-                    dot={{ fill: '#f59e0b', r: 4, strokeWidth: 2, stroke: 'hsl(var(--background))' }}
-                    connectNulls={false}
+                    fill="#f59e0b"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={35}
+                    opacity={0.7}
                   />
-                  <Area
-                    type="monotone"
-                    dataKey="historicalAvg"
+                  <Bar 
+                    dataKey="historicalAvg" 
                     name="Média Histórica"
-                    stroke="hsl(var(--muted-foreground))"
-                    fillOpacity={0}
-                    strokeWidth={2}
-                    strokeDasharray="4 4"
-                    dot={false}
+                    fill="hsl(var(--muted-foreground))"
+                    radius={[4, 4, 0, 0]}
+                    maxBarSize={35}
+                    opacity={0.4}
                   />
-                </AreaChart>
+                </BarChart>
               </ResponsiveContainer>
             </div>
             
             {/* Legend */}
             <div className="flex flex-wrap items-center justify-center gap-6 mt-4 pt-4 border-t border-border">
               <div className="flex items-center gap-2">
-                <div className="w-4 h-4 rounded-full bg-primary" />
-                <span className="text-xs font-medium text-muted-foreground">Realizado</span>
+                <div className="w-4 h-4 rounded bg-primary" />
+                <span className="text-xs font-medium text-muted-foreground">Realizado {currentYear}</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-0.5 bg-amber-500" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 4px, #f59e0b 4px, #f59e0b 8px)' }} />
+                <div className="w-4 h-4 rounded bg-amber-500 opacity-70" />
                 <span className="text-xs font-medium text-muted-foreground">Projeção Sazonal</span>
               </div>
               <div className="flex items-center gap-2">
-                <div className="w-6 h-0.5 bg-muted-foreground" style={{ backgroundImage: 'repeating-linear-gradient(90deg, transparent, transparent 2px, hsl(var(--muted-foreground)) 2px, hsl(var(--muted-foreground)) 4px)' }} />
+                <div className="w-4 h-4 rounded bg-muted-foreground opacity-40" />
                 <span className="text-xs font-medium text-muted-foreground">Média Histórica</span>
               </div>
             </div>
