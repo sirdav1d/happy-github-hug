@@ -409,7 +409,8 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth, annua
 
       {/* Pattern Evolution */}
       <PatternEvolution 
-        historicalData={historicalData} 
+        historicalData={historicalData}
+        currentYearData={currentYearData}
         monthOrder={monthOrder} 
       />
 
