@@ -3,7 +3,6 @@ import { TrendingUp, TrendingDown, Calendar, BarChart3, Sparkles } from "lucide-
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { MonthlyData } from "@/types";
 import InfoTooltip from "./InfoTooltip";
-import SeasonalityIndexTable from "./seasonality/SeasonalityIndexTable";
 import RealVsPatternCard from "./seasonality/RealVsPatternCard";
 import StrategicRecommendations from "./seasonality/StrategicRecommendations";
 
@@ -408,19 +407,6 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth, annua
         </Card>
       </motion.div>
 
-      {/* Seasonality Index Table */}
-      <SeasonalityIndexTable 
-        seasonalityData={seasonalityData} 
-        formatCurrency={formatCurrency} 
-      />
-
-      {/* Strategic Recommendations */}
-      <StrategicRecommendations 
-        seasonalityData={seasonalityData} 
-        currentMonthIndex={currentMonthIndex} 
-      />
-
-
       {/* Pattern Evolution */}
       <PatternEvolution 
         historicalData={historicalData} 
@@ -431,6 +417,12 @@ const SeasonalityView = ({ historicalData, currentYearData, selectedMonth, annua
       <VarianceAnalysis 
         historicalData={historicalData} 
         monthOrder={monthOrder} 
+      />
+
+      {/* Strategic Recommendations - at the end */}
+      <StrategicRecommendations 
+        seasonalityData={seasonalityData} 
+        currentMonthIndex={currentMonthIndex} 
       />
     </motion.div>
   );
