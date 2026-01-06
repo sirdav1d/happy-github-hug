@@ -14,20 +14,46 @@ import { usePGV } from "@/hooks/usePGV";
 interface PGVSemanalViewProps {
   team: Salesperson[];
   monthlyGoal?: number;
+  referenceMonth?: number;
+  referenceYear?: number;
 }
 
-const PGVSemanalView = ({ team, monthlyGoal = 200000 }: PGVSemanalViewProps) => {
-  const [currentWeek, setCurrentWeek] = useState(1);
-  const currentDate = new Date();
-  const currentMonth = currentDate.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+// Calcular número de semanas em um mês
+const getWeeksInMonth = (month: number, year: number): number => {
+  const firstDay = new Date(year, month - 1, 1);
+  const lastDay = new Date(year, month, 0);
+  const daysInMonth = lastDay.getDate();
   
-  const { entries, isUpdating, upsertEntry } = usePGV(
-    currentDate.getMonth() + 1,
-    currentDate.getFullYear()
-  );
+  // Conta quantas segundas-feiras iniciam novas semanas
+  let weeks = 1;
+  for (let day = 1; day <= daysInMonth; day++) {
+    const date = new Date(year, month - 1, day);
+    if (date.getDay() === 1 && day > 1) weeks++;
+  }
+  return weeks;
+};
 
-  // Calculate weeks in month
-  const weeksInMonth = 4;
+const PGVSemanalView = ({ 
+  team, 
+  monthlyGoal = 200000,
+  referenceMonth,
+  referenceYear 
+}: PGVSemanalViewProps) => {
+  const [currentWeek, setCurrentWeek] = useState(1);
+  
+  // Usar mês/ano referência se fornecidos, senão data atual
+  const month = referenceMonth || new Date().getMonth() + 1;
+  const year = referenceYear || new Date().getFullYear();
+  
+  const displayMonth = new Date(year, month - 1).toLocaleDateString('pt-BR', { 
+    month: 'long', 
+    year: 'numeric' 
+  });
+  
+  const { entries, isUpdating, upsertEntry } = usePGV(month, year);
+
+  // Calcular semanas dinamicamente baseado no mês/ano
+  const weeksInMonth = getWeeksInMonth(month, year);
   const weeklyGoal = monthlyGoal / weeksInMonth;
   const dailyWorkingDays = 5;
   
@@ -115,7 +141,7 @@ const PGVSemanalView = ({ team, monthlyGoal = 200000 }: PGVSemanalViewProps) => 
             PGV - Painel de Gestão à Vista
           </h1>
           <p className="text-muted-foreground mt-1 capitalize">
-            {currentMonth}
+            {displayMonth}
           </p>
         </div>
         <div className="flex items-center gap-2">
@@ -219,7 +245,7 @@ const PGVSemanalView = ({ team, monthlyGoal = 200000 }: PGVSemanalViewProps) => 
         <Card className="bg-card border-border">
           <CardContent className="py-4">
             <Tabs value={`week-${currentWeek}`} onValueChange={(v) => setCurrentWeek(parseInt(v.replace('week-', '')))}>
-              <TabsList className="grid grid-cols-4 w-full">
+              <TabsList className={cn("grid w-full", weeksInMonth === 5 ? "grid-cols-5" : "grid-cols-4")}>
                 {Array.from({ length: weeksInMonth }, (_, i) => i + 1).map((week) => (
                   <TabsTrigger 
                     key={week} 
