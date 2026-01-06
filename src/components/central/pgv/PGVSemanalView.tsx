@@ -75,18 +75,21 @@ const PGVSemanalView = ({
       e.salesperson_id === salesperson.id
     );
 
-    // Use database entry if available, otherwise calculate from team data
+    // Buscar dados da semana no histórico do vendedor
     const weekData = salesperson.weeks.find(w => w.week === currentWeek) || {
       week: currentWeek,
       revenue: 0,
-      goal: weeklyGoal / activeTeam.length
+      goal: 0
     };
     
     const accumulatedRevenue = salesperson.weeks
       .filter(w => w.week <= currentWeek)
       .reduce((sum, w) => sum + w.revenue, 0);
     
-    const salespersonWeeklyGoal = dbEntry?.weekly_goal || weekData.goal;
+    // Calcular meta semanal individual: prioridade para DB > upload (se > 0) > meta mensal do vendedor / semanas
+    const salespersonWeeklyGoal = dbEntry?.weekly_goal 
+      || (weekData.goal > 0 ? weekData.goal : (salesperson.monthlyGoal || 0) / weeksInMonth);
+    
     const dailyGoal = salespersonWeeklyGoal / dailyWorkingDays;
     const weeklyRealized = dbEntry?.weekly_realized ?? weekData.revenue;
     const percentAchieved = salespersonWeeklyGoal > 0 ? (weeklyRealized / salespersonWeeklyGoal) * 100 : 0;
