@@ -185,7 +185,33 @@ const AuthenticatedApp = () => {
       case "team":
         return <TeamView team={displayData.team} monthlyGoal={200000} />;
       case "pgv":
-        return <PGVSemanalView team={displayData.team} monthlyGoal={displayData.kpis?.annualGoal ? displayData.kpis.annualGoal / 12 : 200000} />;
+        // Extrair mês/ano do último upload (ex: "Dez-25" → 12, 2025)
+        const parseMonthYear = (selectedMonth?: string) => {
+          if (!selectedMonth) return { month: new Date().getMonth() + 1, year: new Date().getFullYear() };
+          const [monthStr, yearStr] = selectedMonth.split("-");
+          const monthMap: Record<string, number> = {
+            "Jan": 1, "Fev": 2, "Mar": 3, "Abr": 4, "Mai": 5, "Jun": 6,
+            "Jul": 7, "Ago": 8, "Set": 9, "Out": 10, "Nov": 11, "Dez": 12
+          };
+          const month = monthMap[monthStr] || new Date().getMonth() + 1;
+          const year = yearStr ? 2000 + parseInt(yearStr) : new Date().getFullYear();
+          return { month, year };
+        };
+        
+        const pgvMonthYear = parseMonthYear(displayData.selectedMonth);
+        const pgvMonthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+        const pgvMonthData = displayData.currentYearData.find(
+          d => d.month === pgvMonthNames[pgvMonthYear.month - 1]
+        );
+        
+        return (
+          <PGVSemanalView 
+            team={displayData.team} 
+            monthlyGoal={pgvMonthData?.goal || 200000}
+            referenceMonth={pgvMonthYear.month}
+            referenceYear={pgvMonthYear.year}
+          />
+        );
       case "rmr":
         // Buscar dados do mês anterior corretamente
         const currentMonth = new Date().getMonth(); // 0-indexed (Janeiro = 0)
