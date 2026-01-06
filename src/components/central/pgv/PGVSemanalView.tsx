@@ -8,8 +8,10 @@ import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import InfoTooltip from "../InfoTooltip";
 import PGVEditableCell from "./PGVEditableCell";
+import PremiumPolicyConfig from "./PremiumPolicyConfig";
 import { Salesperson } from "@/types";
 import { usePGV } from "@/hooks/usePGV";
+import { usePremiumPolicy } from "@/hooks/usePremiumPolicy";
 
 interface PGVSemanalViewProps {
   team: Salesperson[];
@@ -51,6 +53,7 @@ const PGVSemanalView = ({
   });
   
   const { entries, isUpdating, upsertEntry } = usePGV(month, year);
+  const { tiers, upsertPolicy, isUpdating: isPolicyUpdating } = usePremiumPolicy();
 
   // Calcular semanas dinamicamente baseado no mês/ano
   const weeksInMonth = getWeeksInMonth(month, year);
@@ -188,8 +191,12 @@ const PGVSemanalView = ({
         >
           <Card className="bg-card border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 Meta Semanal
+                <InfoTooltip 
+                  text={`Meta do mês dividida pelo número de semanas. Cálculo: ${formatCurrency(monthlyGoal)} ÷ ${weeksInMonth} semanas = ${formatCurrency(weeklyGoal)}`}
+                  maxWidth={320}
+                />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -207,8 +214,12 @@ const PGVSemanalView = ({
         >
           <Card className="bg-card border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 Realizado Semana {currentWeek}
+                <InfoTooltip 
+                  text="Soma de todas as vendas da equipe nesta semana. Clique nos valores individuais no ranking para editar."
+                  maxWidth={300}
+                />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -226,8 +237,12 @@ const PGVSemanalView = ({
         >
           <Card className="bg-card border-border">
             <CardHeader className="pb-2">
-              <CardTitle className="text-sm font-medium text-muted-foreground">
+              <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 % Atingido
+                <InfoTooltip 
+                  text={`Percentual de atingimento da meta semanal pela equipe: (Realizado ÷ Meta Semanal) × 100. Cálculo: (${formatCurrency(totalWeeklyRealized)} ÷ ${formatCurrency(totalWeeklyGoal)}) × 100 = ${totalPercent.toFixed(0)}%`}
+                  maxWidth={360}
+                />
               </CardTitle>
             </CardHeader>
             <CardContent>
@@ -287,10 +302,34 @@ const PGVSemanalView = ({
             <div className="grid grid-cols-12 gap-4 px-4 py-2 text-xs font-medium text-muted-foreground uppercase tracking-wider border-b border-border">
               <div className="col-span-1">#</div>
               <div className="col-span-3">Vendedor</div>
-              <div className="col-span-2 text-right">Meta Diária</div>
-              <div className="col-span-2 text-right">Meta Semanal</div>
-              <div className="col-span-2 text-right">Realizado</div>
-              <div className="col-span-2 text-right">% Atingido</div>
+              <div className="col-span-2 text-right flex items-center justify-end gap-1">
+                Meta Diária
+                <InfoTooltip 
+                  text="Meta semanal do vendedor dividida por 5 dias úteis."
+                  size="sm"
+                />
+              </div>
+              <div className="col-span-2 text-right flex items-center justify-end gap-1">
+                Meta Semanal
+                <InfoTooltip 
+                  text="Calculada automaticamente: Meta Mensal Individual ÷ Número de Semanas do mês."
+                  size="sm"
+                />
+              </div>
+              <div className="col-span-2 text-right flex items-center justify-end gap-1">
+                Realizado
+                <InfoTooltip 
+                  text="Total de vendas do vendedor nesta semana. Clique no valor para editar."
+                  size="sm"
+                />
+              </div>
+              <div className="col-span-2 text-right flex items-center justify-end gap-1">
+                % Atingido
+                <InfoTooltip 
+                  text="Realizado ÷ Meta Semanal × 100. Verde ≥100%, Amarelo 80-99%, Vermelho <80%."
+                  size="sm"
+                />
+              </div>
             </div>
 
             {/* Linhas de Vendedores */}
@@ -390,40 +429,62 @@ const PGVSemanalView = ({
       >
         <Card className="bg-gradient-to-br from-violet-500/5 via-card to-card border-violet-500/20">
           <CardHeader>
-            <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
-              <Award className="h-5 w-5 text-violet-500" />
-              Política de Premiação
-              <InfoTooltip text="Defina as faixas de premiação para motivar sua equipe. Vincule o atingimento de metas a recompensas claras." />
-            </CardTitle>
+            <div className="flex items-center justify-between">
+              <CardTitle className="text-lg font-semibold text-foreground flex items-center gap-2">
+                <Award className="h-5 w-5 text-violet-500" />
+                Política de Premiação
+                <InfoTooltip 
+                  text="A política de premiação define as recompensas para cada faixa de atingimento. Configure as faixas no botão 'Configurar' para personalizar de acordo com sua empresa."
+                  maxWidth={340}
+                />
+              </CardTitle>
+              <PremiumPolicyConfig
+                tiers={tiers}
+                onSave={(newTiers) => upsertPolicy({ name: "Política Padrão", tiers: newTiers })}
+                isLoading={isPolicyUpdating}
+              />
+            </div>
           </CardHeader>
           <CardContent>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="h-4 w-4 text-emerald-500" />
-                  <span className="text-sm font-medium text-emerald-500">100%+ da Meta</span>
-                </div>
-                <p className="text-foreground font-medium">Premiação Integral</p>
-                <p className="text-xs text-muted-foreground mt-1">+ Bônus por superação</p>
-              </div>
-              
-              <div className="p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="h-4 w-4 text-amber-500" />
-                  <span className="text-sm font-medium text-amber-500">80-99% da Meta</span>
-                </div>
-                <p className="text-foreground font-medium">Premiação Proporcional</p>
-                <p className="text-xs text-muted-foreground mt-1">Baseada no % atingido</p>
-              </div>
-              
-              <div className="p-4 rounded-lg bg-secondary/50 border border-border">
-                <div className="flex items-center gap-2 mb-2">
-                  <Target className="h-4 w-4 text-muted-foreground" />
-                  <span className="text-sm font-medium text-muted-foreground">Abaixo de 80%</span>
-                </div>
-                <p className="text-foreground font-medium">Sem Premiação</p>
-                <p className="text-xs text-muted-foreground mt-1">Foco em melhoria</p>
-              </div>
+            <div className={cn(
+              "grid gap-4",
+              tiers.length === 3 ? "grid-cols-1 md:grid-cols-3" : 
+              tiers.length === 2 ? "grid-cols-1 md:grid-cols-2" : 
+              "grid-cols-1"
+            )}>
+              {tiers.map((tier, idx) => {
+                const getTierStyles = (minPercent: number) => {
+                  if (minPercent >= 100) return {
+                    bg: "bg-emerald-500/10 border-emerald-500/20",
+                    icon: "text-emerald-500",
+                  };
+                  if (minPercent >= 80) return {
+                    bg: "bg-amber-500/10 border-amber-500/20",
+                    icon: "text-amber-500",
+                  };
+                  return {
+                    bg: "bg-secondary/50 border-border",
+                    icon: "text-muted-foreground",
+                  };
+                };
+                const styles = getTierStyles(tier.minPercent);
+                const rangeText = tier.maxPercent 
+                  ? `${tier.minPercent}-${tier.maxPercent}% da Meta`
+                  : `${tier.minPercent}%+ da Meta`;
+
+                return (
+                  <div key={idx} className={`p-4 rounded-lg border ${styles.bg}`}>
+                    <div className="flex items-center gap-2 mb-2">
+                      <Target className={`h-4 w-4 ${styles.icon}`} />
+                      <span className={`text-sm font-medium ${styles.icon}`}>{rangeText}</span>
+                    </div>
+                    <p className="text-foreground font-medium">{tier.reward}</p>
+                    {tier.description && (
+                      <p className="text-xs text-muted-foreground mt-1">{tier.description}</p>
+                    )}
+                  </div>
+                );
+              })}
             </div>
           </CardContent>
         </Card>
