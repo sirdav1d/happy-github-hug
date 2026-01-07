@@ -69,6 +69,11 @@ export const ACTIVE_PIPELINE_STAGES: LeadStatus[] = [
   'prospeccao', 'abordagem', 'apresentacao', 'followup', 'negociacao'
 ];
 
+// Todas as etapas do funil (espelho da pirâmide - 7 colunas)
+export const ALL_PIPELINE_STAGES: LeadStatus[] = [
+  'prospeccao', 'abordagem', 'apresentacao', 'followup', 'negociacao', 'fechado_ganho', 'pos_vendas'
+];
+
 // Etapas de fechamento
 export const CLOSED_STAGES: LeadStatus[] = [
   'fechado_ganho', 'fechado_perdido'
