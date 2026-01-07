@@ -85,7 +85,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'rmr', label: 'RMR', icon: Trophy, iconClass: 'text-amber-500' },
         { id: 'pgv', label: 'PGV Semanal', icon: ClipboardList, iconClass: 'text-emerald-500' },
-        { id: 'fivi', label: 'FIVI', icon: MessageSquare, iconClass: 'text-violet-500' },
+        { id: 'fivi', label: 'FIV', icon: MessageSquare, iconClass: 'text-violet-500' },
       ]
     },
     {
