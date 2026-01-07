@@ -2,6 +2,8 @@ export type SaleChannel = 'online' | 'presencial';
 
 export type LeadSource = 'indicacao' | 'redes_sociais' | 'google' | 'evento' | 'cold_call' | 'parceiro' | 'outro';
 
+export type EntryType = 'individual' | 'batch_weekly' | 'batch_monthly' | 'import';
+
 export interface Client {
   id: string;
   user_id: string;
@@ -29,6 +31,7 @@ export interface Sale {
   lead_source?: LeadSource | null;
   product_service?: string | null;
   notes?: string | null;
+  entry_type?: EntryType | null;
   created_at: string;
   updated_at: string;
 }
@@ -46,6 +49,18 @@ export interface SaleFormData {
   lead_source?: LeadSource;
   product_service?: string;
   notes?: string;
+  entry_type?: EntryType;
+}
+
+export interface BatchSaleEntry {
+  salesperson_id: string;
+  salesperson_name: string;
+  week1?: number;
+  week2?: number;
+  week3?: number;
+  week4?: number;
+  week5?: number;
+  monthly?: number;
 }
 
 export interface ClientFormData {
@@ -68,4 +83,11 @@ export const LEAD_SOURCE_OPTIONS: { value: LeadSource; label: string }[] = [
 export const CHANNEL_OPTIONS: { value: SaleChannel; label: string }[] = [
   { value: 'presencial', label: 'Presencial' },
   { value: 'online', label: 'Online' },
+];
+
+export const ENTRY_TYPE_OPTIONS: { value: EntryType; label: string }[] = [
+  { value: 'individual', label: 'Venda Individual' },
+  { value: 'batch_weekly', label: 'Lote Semanal' },
+  { value: 'batch_monthly', label: 'Lote Mensal' },
+  { value: 'import', label: 'Importação' },
 ];

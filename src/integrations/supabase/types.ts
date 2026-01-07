@@ -564,6 +564,7 @@ export type Database = {
           client_id: string | null
           client_name: string | null
           created_at: string
+          entry_type: string | null
           id: string
           is_new_client: boolean
           lead_source: Database["public"]["Enums"]["lead_source"] | null
@@ -582,6 +583,7 @@ export type Database = {
           client_id?: string | null
           client_name?: string | null
           created_at?: string
+          entry_type?: string | null
           id?: string
           is_new_client?: boolean
           lead_source?: Database["public"]["Enums"]["lead_source"] | null
@@ -600,6 +602,7 @@ export type Database = {
           client_id?: string | null
           client_name?: string | null
           created_at?: string
+          entry_type?: string | null
           id?: string
           is_new_client?: boolean
           lead_source?: Database["public"]["Enums"]["lead_source"] | null
