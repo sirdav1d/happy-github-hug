@@ -61,23 +61,23 @@ const SalesFunnelPyramid = ({
   return (
     <Card className="overflow-hidden">
       <CardHeader className="pb-2">
-        <div className="flex items-center justify-between">
-          <CardTitle className="flex items-center gap-2 text-lg">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
+          <CardTitle className="flex items-center gap-2 text-base sm:text-lg">
             Funil de Vendas
             <InfoTooltip 
               text="Visualize a jornada dos leads através do funil. Clique em um estágio para filtrar o Kanban abaixo."
               maxWidth={280}
             />
           </CardTitle>
-          <div className="flex items-center gap-4 text-sm">
-            <div className="flex items-center gap-2">
-              <Users className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Total:</span>
+          <div className="flex items-center gap-3 sm:gap-4 text-xs sm:text-sm">
+            <div className="flex items-center gap-1 sm:gap-2">
+              <Users className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <span className="text-muted-foreground hidden sm:inline">Total:</span>
               <span className="font-semibold">{totalLeads} leads</span>
             </div>
-            <div className="flex items-center gap-2">
-              <DollarSign className="h-4 w-4 text-muted-foreground" />
-              <span className="text-muted-foreground">Pipeline:</span>
+            <div className="flex items-center gap-1 sm:gap-2">
+              <DollarSign className="h-3 w-3 sm:h-4 sm:w-4 text-muted-foreground" />
+              <span className="text-muted-foreground hidden sm:inline">Pipeline:</span>
               <span className="font-semibold text-emerald-500">{formatCurrency(totalValue)}</span>
             </div>
           </div>
@@ -106,7 +106,7 @@ const SalesFunnelPyramid = ({
                 {/* Trapézio do funil */}
                 <div 
                   className={`
-                    relative h-14 flex items-center justify-center rounded-lg
+                    relative h-10 sm:h-14 flex items-center justify-center rounded-lg
                     bg-gradient-to-r ${funnelColors[index]}
                     transition-all duration-300
                     ${isActive ? 'ring-2 ring-white ring-offset-2 ring-offset-background shadow-lg' : ''}
@@ -164,25 +164,25 @@ const SalesFunnelPyramid = ({
         </div>
 
         {/* Métricas resumidas */}
-        <div className="flex items-center justify-center gap-8 mt-6 pt-4 border-t border-border">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mt-4 sm:mt-6 pt-4 border-t border-border">
           <div className="text-center">
-            <p className="text-xs text-muted-foreground">Taxa de Conversão Total</p>
-            <p className={`text-lg font-bold ${totalConversionRate >= 10 ? 'text-emerald-500' : 'text-amber-500'}`}>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Taxa de Conversão Total</p>
+            <p className={`text-base sm:text-lg font-bold ${totalConversionRate >= 10 ? 'text-emerald-500' : 'text-amber-500'}`}>
               {totalConversionRate.toFixed(1)}%
             </p>
-            <p className="text-[10px] text-muted-foreground">Prospecção → Ganho</p>
+            <p className="text-[9px] sm:text-[10px] text-muted-foreground">Prospecção → Ganho</p>
           </div>
-          <div className="h-8 w-px bg-border" />
+          <div className="hidden sm:block h-8 w-px bg-border" />
           <div className="text-center">
-            <p className="text-xs text-muted-foreground">Valor Médio por Lead</p>
-            <p className="text-lg font-bold text-foreground">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Valor Médio por Lead</p>
+            <p className="text-base sm:text-lg font-bold text-foreground">
               {totalLeads > 0 ? formatCurrency(totalValue / totalLeads) : 'R$ 0'}
             </p>
           </div>
-          <div className="h-8 w-px bg-border" />
+          <div className="hidden sm:block h-8 w-px bg-border" />
           <div className="text-center">
-            <p className="text-xs text-muted-foreground">Leads Ganhos (30d)</p>
-            <p className="text-lg font-bold text-emerald-500">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Leads Ganhos (30d)</p>
+            <p className="text-base sm:text-lg font-bold text-emerald-500">
               {closedWonCount}
             </p>
           </div>

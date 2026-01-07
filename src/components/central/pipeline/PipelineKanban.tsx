@@ -27,7 +27,7 @@ const PipelineKanban = ({
     : ALL_PIPELINE_STAGES;
 
   return (
-    <div className="grid grid-cols-7 gap-3">
+    <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 overflow-x-auto">
       {stagesToShow.map((status, columnIndex) => {
         const config = LEAD_STATUS_CONFIG[status];
         const stageLeads = leadsByStatus[status] || [];

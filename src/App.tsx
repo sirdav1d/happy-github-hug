@@ -18,10 +18,12 @@ import PGVSemanalView from "@/components/central/pgv/PGVSemanalView";
 import FIVIView from "@/components/central/fivi/FIVIView";
 import PipelineView from "@/components/central/pipeline/PipelineView";
 import Sidebar from "@/components/central/Sidebar";
+import MobileHeader from "@/components/central/MobileHeader";
 import ChatAssistant from "@/components/central/ChatAssistant";
 import UploadModal from "@/components/central/UploadModal";
 import useUploadSheet from "@/hooks/useUploadSheet";
 import useDashboardData from "@/hooks/useDashboardData";
+import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardData, ViewState, UploadConfig } from "@/types";
 
 // Criar queryClient fora do componente mas com uma função
@@ -127,6 +129,8 @@ const AuthenticatedApp = () => {
   const [currentView, setCurrentView] = useState<ViewState>("dashboard");
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
+  const [sidebarOpen, setSidebarOpen] = useState(false);
+  const isMobile = useIsMobile();
   const { processFile, isProcessing, processedData, reset } = useUploadSheet();
   const { dashboardData, isLoading: isLoadingData, saveData, mergeData, fetchData } = useDashboardData(user?.id);
 
@@ -297,8 +301,20 @@ const AuthenticatedApp = () => {
     }
   };
 
+  // Fechar sidebar ao mudar de view em mobile
+  useEffect(() => {
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [currentView, isMobile]);
+
   return (
     <div className="min-h-screen bg-background flex">
+      {/* Mobile Header */}
+      <MobileHeader 
+        onOpenSidebar={() => setSidebarOpen(true)} 
+      />
+      
       <Sidebar
         currentView={currentView}
         onChangeView={setCurrentView}
@@ -306,9 +322,11 @@ const AuthenticatedApp = () => {
         userRole={userProfile?.role || "business_owner"}
         isDarkMode={isDarkMode}
         onToggleTheme={handleToggleTheme}
+        isOpen={sidebarOpen}
+        onClose={() => setSidebarOpen(false)}
       />
       
-      <main className="flex-1 ml-64 p-6 overflow-auto">
+      <main className="flex-1 md:ml-64 pt-14 md:pt-0 p-4 md:p-6 overflow-auto">
         {renderCurrentView()}
       </main>
       
