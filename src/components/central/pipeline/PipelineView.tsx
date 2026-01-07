@@ -8,6 +8,7 @@ import { Salesperson } from '@/types';
 import InfoTooltip from '@/components/central/InfoTooltip';
 import SalesFunnelPyramid from './SalesFunnelPyramid';
 import PipelineKanban from './PipelineKanban';
+import PipelineList from './PipelineList';
 import ContactAlerts from './ContactAlerts';
 import LeadForm from './LeadForm';
 import LeadDetailModal from './LeadDetailModal';
@@ -127,11 +128,13 @@ const PipelineView = ({ team }: PipelineViewProps) => {
         </TabsContent>
 
         <TabsContent value="list">
-          <div className="bg-card rounded-xl border border-border p-6">
-            <p className="text-muted-foreground text-center">
-              Visualização em lista em desenvolvimento...
-            </p>
-          </div>
+          <PipelineList 
+            leads={leads}
+            onLeadClick={handleLeadClick}
+            onMoveStage={moveToStage}
+            onDelete={deleteLead}
+            team={team}
+          />
         </TabsContent>
       </Tabs>
 
