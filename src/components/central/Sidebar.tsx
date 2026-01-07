@@ -1,6 +1,7 @@
 import React from 'react';
-import { ViewState, UserRole } from '@/types';
+import { ViewState, UserRole, DashboardData } from '@/types';
 import Logo from './Logo';
+import NotificationCenter from './NotificationCenter';
 import { Separator } from '@/components/ui/separator';
 import {
   LayoutDashboard,
@@ -33,6 +34,7 @@ interface SidebarProps {
   customLogoUrl?: string;
   isOpen?: boolean;
   onClose?: () => void;
+  dashboardData?: DashboardData;
 }
 
 interface NavItem {
@@ -59,7 +61,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   onToggleTheme,
   customLogoUrl,
   isOpen = true,
-  onClose
+  onClose,
+  dashboardData
 }) => {
   const sections: Section[] = [
     {
@@ -130,14 +133,22 @@ const Sidebar: React.FC<SidebarProps> = ({
       `}>
         <div className="p-6 border-b border-border flex items-center justify-between">
           <Logo customLogoUrl={customLogoUrl} />
-          {onClose && (
-            <button 
-              onClick={onClose}
-              className="md:hidden p-1 rounded-lg hover:bg-muted text-muted-foreground"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-            </button>
-          )}
+          <div className="flex items-center gap-1">
+            <div className="hidden md:block">
+              <NotificationCenter 
+                dashboardData={dashboardData}
+                onNavigate={onChangeView}
+              />
+            </div>
+            {onClose && (
+              <button 
+                onClick={onClose}
+                className="md:hidden p-1 rounded-lg hover:bg-muted text-muted-foreground"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+              </button>
+            )}
+          </div>
         </div>
 
       <nav className="flex-1 p-4 overflow-y-auto scrollbar-thin">

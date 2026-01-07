@@ -2,13 +2,22 @@ import React from 'react';
 import { Menu } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import Logo from './Logo';
+import NotificationCenter from './NotificationCenter';
+import { DashboardData, ViewState } from '@/types';
 
 interface MobileHeaderProps {
   onOpenSidebar: () => void;
   customLogoUrl?: string;
+  dashboardData?: DashboardData;
+  onNavigate?: (view: ViewState) => void;
 }
 
-const MobileHeader: React.FC<MobileHeaderProps> = ({ onOpenSidebar, customLogoUrl }) => {
+const MobileHeader: React.FC<MobileHeaderProps> = ({ 
+  onOpenSidebar, 
+  customLogoUrl,
+  dashboardData,
+  onNavigate 
+}) => {
   return (
     <header className="md:hidden fixed top-0 left-0 right-0 z-40 bg-card/95 backdrop-blur-xl border-b border-border h-14 flex items-center justify-between px-4">
       <Button
@@ -24,8 +33,10 @@ const MobileHeader: React.FC<MobileHeaderProps> = ({ onOpenSidebar, customLogoUr
         <Logo customLogoUrl={customLogoUrl} collapsed />
       </div>
       
-      {/* Spacer para centralizar o logo */}
-      <div className="w-9" />
+      <NotificationCenter 
+        dashboardData={dashboardData}
+        onNavigate={onNavigate}
+      />
     </header>
   );
 };

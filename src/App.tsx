@@ -304,7 +304,9 @@ const AuthenticatedApp = () => {
     <div className="min-h-screen bg-background flex">
       {/* Mobile Header */}
       <MobileHeader 
-        onOpenSidebar={() => setSidebarOpen(true)} 
+        onOpenSidebar={() => setSidebarOpen(true)}
+        dashboardData={displayData}
+        onNavigate={setCurrentView}
       />
       
       <Sidebar
@@ -316,6 +318,7 @@ const AuthenticatedApp = () => {
         onToggleTheme={handleToggleTheme}
         isOpen={sidebarOpen}
         onClose={() => setSidebarOpen(false)}
+        dashboardData={displayData}
       />
       
       <main className="flex-1 md:ml-64 pt-14 md:pt-0 p-4 md:p-6 overflow-auto">
