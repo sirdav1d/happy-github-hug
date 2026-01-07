@@ -26,17 +26,18 @@ const SalesFunnelPyramid = ({
   onStageClick,
   activeStage
 }: SalesFunnelPyramidProps) => {
-  // Configuração de larguras para o funil (de cima para baixo)
-  const widthPercentages = [100, 85, 70, 55, 40, 28];
+  // Configuração de larguras para o funil (7 etapas)
+  const widthPercentages = [100, 87, 74, 61, 48, 35, 25];
   
-  // Cores do funil (gradiente frio para quente)
+  // Cores do funil (7 etapas)
   const funnelColors = [
-    'from-indigo-500 to-indigo-600',
-    'from-violet-500 to-violet-600',
-    'from-purple-500 to-purple-600',
-    'from-fuchsia-500 to-fuchsia-600',
-    'from-pink-500 to-pink-600',
-    'from-emerald-500 to-emerald-600'
+    'from-indigo-500 to-indigo-600',     // Prospecção
+    'from-violet-500 to-violet-600',     // Abordagem
+    'from-purple-500 to-purple-600',     // Apresentação
+    'from-fuchsia-500 to-fuchsia-600',   // Follow-up
+    'from-pink-500 to-pink-600',         // Negociação
+    'from-emerald-500 to-emerald-600',   // Fechado Ganho
+    'from-teal-500 to-teal-600'          // Pós-vendas
   ];
 
   const formatCurrency = (value: number) => {
@@ -82,7 +83,7 @@ const SalesFunnelPyramid = ({
       
       <CardContent className="pt-4">
         <div className="flex flex-col items-center gap-1">
-          {metrics.slice(0, 6).map((metric, index) => {
+          {metrics.slice(0, 7).map((metric, index) => {
             const config = LEAD_STATUS_CONFIG[metric.status];
             const width = widthPercentages[index];
             const isActive = activeStage === metric.status;
@@ -109,7 +110,7 @@ const SalesFunnelPyramid = ({
                     ${!isActive ? 'opacity-90 hover:opacity-100' : ''}
                   `}
                   style={{
-                    clipPath: index < 5 
+                    clipPath: index < 6 
                       ? 'polygon(3% 0%, 97% 0%, 100% 100%, 0% 100%)'
                       : 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)'
                   }}
@@ -145,7 +146,7 @@ const SalesFunnelPyramid = ({
                 </div>
 
                 {/* Seta de conversão entre estágios */}
-                {index < 5 && (
+                {index < 6 && (
                   <div className="absolute -bottom-1 left-1/2 transform -translate-x-1/2 z-20">
                     <div className="w-0 h-0 border-l-[6px] border-r-[6px] border-t-[6px] border-l-transparent border-r-transparent border-t-muted-foreground/20" />
                   </div>

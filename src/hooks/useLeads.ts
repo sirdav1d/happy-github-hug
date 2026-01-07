@@ -210,9 +210,17 @@ export function useLeads() {
     );
   }, [leads]);
 
-  // Métricas do funil
+  // Métricas do funil - 7 etapas completas
   const funnelMetrics = useMemo((): FunnelMetrics[] => {
-    const stages: LeadStatus[] = [...ACTIVE_PIPELINE_STAGES, 'fechado_ganho'];
+    const stages: LeadStatus[] = [
+      'prospeccao',
+      'abordagem',
+      'apresentacao',
+      'followup',
+      'negociacao',
+      'fechado_ganho',
+      'pos_vendas'
+    ];
     
     return stages.map((status, index) => {
       const stageLeads = leadsByStatus[status] || [];
