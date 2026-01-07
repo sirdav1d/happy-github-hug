@@ -67,9 +67,16 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'agency-global', label: 'Visão Global', icon: Globe, consultantOnly: true, iconClass: 'text-cyan-500' },
         { id: 'dashboard', label: 'Visão Geral', icon: LayoutDashboard },
-        { id: 'pipeline', label: 'Pipeline', icon: Filter, iconClass: 'text-blue-500' },
         { id: 'seasonality', label: 'Sazonalidade', icon: CalendarDays },
         { id: 'team', label: 'Equipe', icon: Users },
+      ]
+    },
+    {
+      label: 'Vendas',
+      showSeparator: true,
+      items: [
+        { id: 'pipeline', label: 'Pipeline', icon: Filter, iconClass: 'text-indigo-500' },
+        { id: 'input-center', label: 'Lançamentos', icon: PenTool, iconClass: 'text-emerald-500' },
       ]
     },
     {
@@ -83,6 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
     },
     {
       label: 'Inteligência',
+      showSeparator: true,
       items: [
         { id: 'insights', label: 'Insights', icon: Lightbulb },
         { id: 'ai-summary', label: 'Sumário Executivo', icon: FileText },
@@ -201,27 +209,13 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
         )}
 
-        <div className="grid grid-cols-2 gap-2">
-          <button
-            onClick={() => handleNavClick('input-center')}
-            className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium transition-all group ${
-              currentView === 'input-center'
-                ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
-                : 'bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground border border-border hover:border-emerald-500/50'
-            }`}
-          >
-            <PenTool size={14} strokeWidth={2} className={currentView === 'input-center' ? 'text-emerald-500' : 'group-hover:text-emerald-500'} />
-            <span>Lançamentos</span>
-          </button>
-
-          <button
-            onClick={() => { onOpenUpload(); onClose?.(); }}
-            className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground border border-dashed border-border hover:border-primary transition-all group"
-          >
-            <Upload size={14} strokeWidth={2} className="group-hover:text-primary" />
-            <span>Upload</span>
-          </button>
-        </div>
+        <button
+          onClick={() => { onOpenUpload(); onClose?.(); }}
+          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground border border-dashed border-border hover:border-primary transition-all group"
+        >
+          <Upload size={14} strokeWidth={2} className="group-hover:text-primary" />
+          <span>Upload Planilha</span>
+        </button>
 
         <p className="text-[9px] text-muted-foreground/50 text-center pt-1 font-mono">v2.0 • CI</p>
       </div>
