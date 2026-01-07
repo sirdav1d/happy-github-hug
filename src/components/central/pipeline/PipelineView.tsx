@@ -12,6 +12,7 @@ import PipelineList from './PipelineList';
 import ContactAlerts from './ContactAlerts';
 import LeadForm from './LeadForm';
 import LeadDetailModal from './LeadDetailModal';
+import IRISPipelineInsights from './IRISPipelineInsights';
 import { Lead } from '@/types/leads';
 
 interface PipelineViewProps {
@@ -84,6 +85,12 @@ const PipelineView = ({ team }: PipelineViewProps) => {
           </Button>
         </div>
       </div>
+
+      {/* IRIS Insights Proativos */}
+      <IRISPipelineInsights 
+        leads={leads}
+        onLeadClick={handleLeadClick}
+      />
 
       {/* Alertas de Contato */}
       <ContactAlerts 
