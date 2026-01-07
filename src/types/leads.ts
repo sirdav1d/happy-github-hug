@@ -55,11 +55,11 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, {
   order: number;
 }> = {
   prospeccao: { label: 'Prospecção', color: 'text-indigo-500', bgColor: 'bg-indigo-500', order: 1 },
-  abordagem: { label: 'Abordagem', color: 'text-violet-500', bgColor: 'bg-violet-500', order: 2 },
+  abordagem: { label: 'Qualificação', color: 'text-violet-500', bgColor: 'bg-violet-500', order: 2 },
   apresentacao: { label: 'Apresentação', color: 'text-purple-500', bgColor: 'bg-purple-500', order: 3 },
   followup: { label: 'Follow-up', color: 'text-fuchsia-500', bgColor: 'bg-fuchsia-500', order: 4 },
   negociacao: { label: 'Negociação', color: 'text-pink-500', bgColor: 'bg-pink-500', order: 5 },
-  fechado_ganho: { label: 'Ganho', color: 'text-emerald-500', bgColor: 'bg-emerald-500', order: 6 },
+  fechado_ganho: { label: 'Fechamento', color: 'text-emerald-500', bgColor: 'bg-emerald-500', order: 6 },
   fechado_perdido: { label: 'Perdido', color: 'text-red-500', bgColor: 'bg-red-500', order: 7 },
   pos_vendas: { label: 'Pós-vendas', color: 'text-teal-500', bgColor: 'bg-teal-500', order: 8 }
 };
