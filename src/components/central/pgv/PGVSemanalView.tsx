@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { ClipboardList, Target, Users, Award, Edit2 } from "lucide-react";
+import { ClipboardList, Target, Users, Award, Edit2, ChevronLeft, ChevronRight } from "lucide-react";
+import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
 import { Badge } from "@/components/ui/badge";
@@ -43,20 +44,49 @@ const PGVSemanalView = ({
 }: PGVSemanalViewProps) => {
   const [currentWeek, setCurrentWeek] = useState(1);
   
-  // Usar mês/ano referência se fornecidos, senão data atual
-  const month = referenceMonth || new Date().getMonth() + 1;
-  const year = referenceYear || new Date().getFullYear();
+  // Mês/ano referência (limite máximo para navegação)
+  const refMonth = referenceMonth || new Date().getMonth() + 1;
+  const refYear = referenceYear || new Date().getFullYear();
   
-  const displayMonth = new Date(year, month - 1).toLocaleDateString('pt-BR', { 
+  // Estado para navegação entre meses
+  const [selectedMonth, setSelectedMonth] = useState(refMonth);
+  const [selectedYear, setSelectedYear] = useState(refYear);
+  
+  const displayMonth = new Date(selectedYear, selectedMonth - 1).toLocaleDateString('pt-BR', { 
     month: 'long', 
     year: 'numeric' 
   });
   
-  const { entries, isUpdating, upsertEntry } = usePGV(month, year);
+  // Verificar se é o mês atual de referência
+  const isCurrentReference = selectedMonth === refMonth && selectedYear === refYear;
+  
+  // Lógica de navegação
+  const handlePreviousMonth = () => {
+    if (selectedMonth === 1) {
+      setSelectedMonth(12);
+      setSelectedYear(selectedYear - 1);
+    } else {
+      setSelectedMonth(selectedMonth - 1);
+    }
+    setCurrentWeek(1);
+  };
+  
+  const handleNextMonth = () => {
+    if (isCurrentReference) return;
+    if (selectedMonth === 12) {
+      setSelectedMonth(1);
+      setSelectedYear(selectedYear + 1);
+    } else {
+      setSelectedMonth(selectedMonth + 1);
+    }
+    setCurrentWeek(1);
+  };
+  
+  const { entries, isUpdating, upsertEntry } = usePGV(selectedMonth, selectedYear);
   const { tiers, upsertPolicy, isUpdating: isPolicyUpdating } = usePremiumPolicy();
 
-  // Calcular semanas dinamicamente baseado no mês/ano
-  const weeksInMonth = getWeeksInMonth(month, year);
+  // Calcular semanas dinamicamente baseado no mês/ano selecionado
+  const weeksInMonth = getWeeksInMonth(selectedMonth, selectedYear);
   const weeklyGoal = monthlyGoal / weeksInMonth;
   const dailyWorkingDays = 5;
   
@@ -146,9 +176,6 @@ const PGVSemanalView = ({
             </div>
             PGV - Painel de Gestão à Vista
           </h1>
-          <p className="text-muted-foreground mt-1 capitalize">
-            {displayMonth}
-          </p>
         </div>
         <div className="flex items-center gap-2">
           <Badge variant="outline" className="gap-1">
@@ -160,6 +187,41 @@ const PGVSemanalView = ({
             maxWidth={320}
           />
         </div>
+      </div>
+
+      {/* Navegação de Meses */}
+      <div className="flex items-center justify-center gap-4">
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handlePreviousMonth}
+          className="h-9 w-9"
+        >
+          <ChevronLeft className="h-4 w-4" />
+        </Button>
+        
+        <div className="text-center min-w-[200px] flex items-center justify-center gap-2">
+          <span className="text-lg font-semibold capitalize">
+            {displayMonth}
+          </span>
+          {isCurrentReference && (
+            <Badge variant="secondary" className="text-xs">Atual</Badge>
+          )}
+          <InfoTooltip 
+            text="Navegue entre meses para analisar o histórico de performance da equipe. O mês 'Atual' é o do último upload de dados."
+            maxWidth={300}
+          />
+        </div>
+        
+        <Button 
+          variant="outline" 
+          size="icon"
+          onClick={handleNextMonth}
+          disabled={isCurrentReference}
+          className="h-9 w-9"
+        >
+          <ChevronRight className="h-4 w-4" />
+        </Button>
       </div>
 
       {/* Resumo do Mês */}
