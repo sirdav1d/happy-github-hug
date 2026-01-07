@@ -74,6 +74,11 @@ export const ALL_PIPELINE_STAGES: LeadStatus[] = [
   'prospeccao', 'abordagem', 'apresentacao', 'followup', 'negociacao', 'fechado_ganho', 'pos_vendas'
 ];
 
+// Todas as etapas incluindo perdidos (8 colunas para Kanban com toggle)
+export const FULL_PIPELINE_STAGES: LeadStatus[] = [
+  'prospeccao', 'abordagem', 'apresentacao', 'followup', 'negociacao', 'fechado_ganho', 'fechado_perdido', 'pos_vendas'
+];
+
 // Etapas de fechamento
 export const CLOSED_STAGES: LeadStatus[] = [
   'fechado_ganho', 'fechado_perdido'

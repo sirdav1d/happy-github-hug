@@ -254,6 +254,25 @@ export function useLeads() {
     }, 0);
   }, [leadsByStatus]);
 
+  // Leads perdidos (últimos 30 dias)
+  const lostLeadsCount = useMemo(() => {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    
+    return (leadsByStatus['fechado_perdido'] || []).filter(l => {
+      if (!l.closing_date) return false;
+      return new Date(l.closing_date) >= thirtyDaysAgo;
+    }).length;
+  }, [leadsByStatus]);
+
+  // Taxa de perda (perdidos / (ganhos + perdidos))
+  const lossRate = useMemo(() => {
+    const wonCount = (leadsByStatus['fechado_ganho'] || []).length;
+    const lostCount = (leadsByStatus['fechado_perdido'] || []).length;
+    const total = wonCount + lostCount;
+    return total > 0 ? (lostCount / total) * 100 : 0;
+  }, [leadsByStatus]);
+
   return {
     leads,
     isLoading,
@@ -268,6 +287,8 @@ export function useLeads() {
     overdueContacts,
     funnelMetrics,
     totalPipelineValue,
-    totalActiveLeads
+    totalActiveLeads,
+    lostLeadsCount,
+    lossRate
   };
 }

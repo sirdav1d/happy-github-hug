@@ -17,6 +17,8 @@ interface SalesFunnelPyramidProps {
   totalLeads: number;
   onStageClick?: (status: string) => void;
   activeStage?: string | null;
+  lostLeadsCount?: number;
+  lossRate?: number;
 }
 
 const SalesFunnelPyramid = ({ 
@@ -24,7 +26,9 @@ const SalesFunnelPyramid = ({
   totalValue, 
   totalLeads,
   onStageClick,
-  activeStage
+  activeStage,
+  lostLeadsCount = 0,
+  lossRate = 0
 }: SalesFunnelPyramidProps) => {
   // Configuração de larguras para o funil (7 etapas - mínimo 32% para caber conteúdo)
   const widthPercentages = [100, 88, 76, 64, 52, 42, 32];
@@ -164,9 +168,9 @@ const SalesFunnelPyramid = ({
         </div>
 
         {/* Métricas resumidas */}
-        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-8 mt-4 sm:mt-6 pt-4 border-t border-border">
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-4 sm:gap-6 mt-4 sm:mt-6 pt-4 border-t border-border">
           <div className="text-center">
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Taxa de Conversão Total</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Taxa de Conversão</p>
             <p className={`text-base sm:text-lg font-bold ${totalConversionRate >= 10 ? 'text-emerald-500' : 'text-amber-500'}`}>
               {totalConversionRate.toFixed(1)}%
             </p>
@@ -174,16 +178,30 @@ const SalesFunnelPyramid = ({
           </div>
           <div className="hidden sm:block h-8 w-px bg-border" />
           <div className="text-center">
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Valor Médio por Lead</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Valor Médio</p>
             <p className="text-base sm:text-lg font-bold text-foreground">
               {totalLeads > 0 ? formatCurrency(totalValue / totalLeads) : 'R$ 0'}
             </p>
           </div>
           <div className="hidden sm:block h-8 w-px bg-border" />
           <div className="text-center">
-            <p className="text-[10px] sm:text-xs text-muted-foreground">Leads Ganhos (30d)</p>
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Ganhos (30d)</p>
             <p className="text-base sm:text-lg font-bold text-emerald-500">
               {closedWonCount}
+            </p>
+          </div>
+          <div className="hidden sm:block h-8 w-px bg-border" />
+          <div className="text-center">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Perdidos (30d)</p>
+            <p className="text-base sm:text-lg font-bold text-red-500">
+              {lostLeadsCount}
+            </p>
+          </div>
+          <div className="hidden sm:block h-8 w-px bg-border" />
+          <div className="text-center">
+            <p className="text-[10px] sm:text-xs text-muted-foreground">Taxa de Perda</p>
+            <p className={`text-base sm:text-lg font-bold ${lossRate > 50 ? 'text-red-500' : lossRate > 30 ? 'text-amber-500' : 'text-muted-foreground'}`}>
+              {lossRate.toFixed(1)}%
             </p>
           </div>
         </div>

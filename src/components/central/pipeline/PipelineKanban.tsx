@@ -13,15 +13,19 @@ import {
   DragEndEvent,
   useDroppable,
 } from '@dnd-kit/core';
-import { Lead, LeadStatus, ALL_PIPELINE_STAGES, LEAD_STATUS_CONFIG } from '@/types/leads';
+import { Lead, LeadStatus, ALL_PIPELINE_STAGES, FULL_PIPELINE_STAGES, LEAD_STATUS_CONFIG } from '@/types/leads';
 import LeadCard from './LeadCard';
 import { toast } from 'sonner';
+import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
 
 interface PipelineKanbanProps {
   leadsByStatus: Record<LeadStatus, Lead[]>;
   onLeadClick: (lead: Lead) => void;
   onMoveStage: (id: string, newStatus: LeadStatus) => Promise<boolean>;
   filterStatus?: string | null;
+  showLostColumn?: boolean;
+  onToggleLostColumn?: (show: boolean) => void;
 }
 
 interface DroppableColumnProps {
@@ -50,10 +54,13 @@ const PipelineKanban = ({
   leadsByStatus, 
   onLeadClick, 
   onMoveStage,
-  filterStatus 
+  filterStatus,
+  showLostColumn = false,
+  onToggleLostColumn
 }: PipelineKanbanProps) => {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [overId, setOverId] = useState<string | null>(null);
+  const [localShowLost, setLocalShowLost] = useState(showLostColumn);
 
   const sensors = useSensors(
     useSensor(PointerSensor, {
@@ -72,9 +79,17 @@ const PipelineKanban = ({
     return `R$ ${value.toFixed(0)}`;
   };
 
+  const handleToggleLost = (checked: boolean) => {
+    setLocalShowLost(checked);
+    onToggleLostColumn?.(checked);
+  };
+
+  const baseStages = localShowLost ? FULL_PIPELINE_STAGES : ALL_PIPELINE_STAGES;
   const stagesToShow = filterStatus 
-    ? ALL_PIPELINE_STAGES.filter(s => s === filterStatus)
-    : ALL_PIPELINE_STAGES;
+    ? baseStages.filter(s => s === filterStatus)
+    : baseStages;
+  
+  const lostCount = (leadsByStatus['fechado_perdido'] || []).length;
 
   // Find active lead for drag overlay
   const activeLead = activeId 
@@ -113,15 +128,30 @@ const PipelineKanban = ({
     }
   };
 
+  const gridCols = localShowLost ? 'xl:grid-cols-8' : 'xl:grid-cols-7';
+
   return (
-    <DndContext
-      sensors={sensors}
-      collisionDetection={closestCenter}
-      onDragStart={handleDragStart}
-      onDragOver={handleDragOver}
-      onDragEnd={handleDragEnd}
-    >
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-7 gap-3 overflow-x-auto">
+    <div className="space-y-3">
+      {/* Toggle para mostrar perdidos */}
+      <div className="flex items-center justify-end gap-2">
+        <Switch 
+          id="show-lost" 
+          checked={localShowLost} 
+          onCheckedChange={handleToggleLost}
+        />
+        <Label htmlFor="show-lost" className="text-sm text-muted-foreground cursor-pointer">
+          Mostrar Perdidos {lostCount > 0 && `(${lostCount})`}
+        </Label>
+      </div>
+
+      <DndContext
+        sensors={sensors}
+        collisionDetection={closestCenter}
+        onDragStart={handleDragStart}
+        onDragOver={handleDragOver}
+        onDragEnd={handleDragEnd}
+      >
+        <div className={`grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 ${gridCols} gap-3 overflow-x-auto`}>
         {stagesToShow.map((status, columnIndex) => {
           const config = LEAD_STATUS_CONFIG[status];
           const stageLeads = leadsByStatus[status] || [];
@@ -175,21 +205,22 @@ const PipelineKanban = ({
         })}
       </div>
 
-      {/* Drag Overlay - Shows card being dragged */}
-      <DragOverlay>
-        {activeLead ? (
-          <div className="rotate-3 scale-105">
-            <LeadCard
-              lead={activeLead}
-              onClick={() => {}}
-              index={0}
-              isDragging={false}
-              isOverlay
-            />
-          </div>
-        ) : null}
-      </DragOverlay>
-    </DndContext>
+        {/* Drag Overlay - Shows card being dragged */}
+        <DragOverlay>
+          {activeLead ? (
+            <div className="rotate-3 scale-105">
+              <LeadCard
+                lead={activeLead}
+                onClick={() => {}}
+                index={0}
+                isDragging={false}
+                isOverlay
+              />
+            </div>
+          ) : null}
+        </DragOverlay>
+      </DndContext>
+    </div>
   );
 };
 

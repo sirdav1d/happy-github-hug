@@ -28,6 +28,8 @@ const PipelineView = ({ team }: PipelineViewProps) => {
     funnelMetrics,
     totalPipelineValue,
     totalActiveLeads,
+    lostLeadsCount,
+    lossRate,
     createLead,
     updateLead,
     moveToStage,
@@ -102,6 +104,8 @@ const PipelineView = ({ team }: PipelineViewProps) => {
           totalLeads={totalActiveLeads}
           onStageClick={handlePyramidClick}
           activeStage={filterStatus}
+          lostLeadsCount={lostLeadsCount}
+          lossRate={lossRate}
         />
       </motion.div>
 
