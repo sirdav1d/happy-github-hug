@@ -1,6 +1,6 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
-import { Sale, SaleFormData } from '@/types/sales';
+import { Sale, SaleFormData, EntryType } from '@/types/sales';
 import { useToast } from '@/hooks/use-toast';
 
 interface UseSalesReturn {
@@ -8,6 +8,7 @@ interface UseSalesReturn {
   isLoading: boolean;
   error: string | null;
   createSale: (data: SaleFormData) => Promise<Sale | null>;
+  createBatchSales: (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType }[]) => Promise<boolean>;
   updateSale: (id: string, data: Partial<SaleFormData>) => Promise<Sale | null>;
   deleteSale: (id: string) => Promise<boolean>;
   fetchSales: (filters?: SalesFilter) => Promise<void>;
@@ -18,6 +19,7 @@ export interface SalesFilter {
   endDate?: string;
   salespersonId?: string;
   channel?: string;
+  entryType?: EntryType;
 }
 
 export default function useSales(userId: string | undefined): UseSalesReturn {
@@ -50,6 +52,9 @@ export default function useSales(userId: string | undefined): UseSalesReturn {
       }
       if (filters?.channel && (filters.channel === 'online' || filters.channel === 'presencial')) {
         query = query.eq('channel', filters.channel);
+      }
+      if (filters?.entryType) {
+        query = query.eq('entry_type', filters.entryType);
       }
 
       const { data, error: fetchError } = await query;
@@ -93,6 +98,7 @@ export default function useSales(userId: string | undefined): UseSalesReturn {
           lead_source: data.lead_source || null,
           product_service: data.product_service || null,
           notes: data.notes || null,
+          entry_type: data.entry_type || 'individual',
         })
         .select()
         .single();
@@ -117,6 +123,55 @@ export default function useSales(userId: string | undefined): UseSalesReturn {
         variant: 'destructive',
       });
       return null;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, toast]);
+
+  const createBatchSales = useCallback(async (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType }[]): Promise<boolean> => {
+    if (!userId || entries.length === 0) return false;
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const salesData = entries.map(entry => ({
+        user_id: userId,
+        sale_date: entry.sale_date,
+        amount: entry.amount,
+        salesperson_id: entry.salesperson_id,
+        salesperson_name: entry.salesperson_name,
+        channel: 'presencial' as const,
+        is_new_client: false,
+        acquisition_cost: 0,
+        entry_type: entry.entry_type,
+        notes: entry.entry_type === 'import' 
+          ? 'Importação retroativa' 
+          : `Lançamento em lote - ${entry.entry_type === 'batch_weekly' ? 'Semanal' : 'Mensal'}`,
+      }));
+
+      const { data: newSales, error: insertError } = await supabase
+        .from('sales')
+        .insert(salesData)
+        .select();
+
+      if (insertError) throw insertError;
+
+      const typedSales = (newSales || []) as Sale[];
+      setSales(prev => [...typedSales, ...prev].sort((a, b) => 
+        new Date(b.sale_date).getTime() - new Date(a.sale_date).getTime()
+      ));
+
+      return true;
+    } catch (err: any) {
+      console.error('Error creating batch sales:', err);
+      setError(err.message || 'Erro ao registrar vendas em lote');
+      toast({
+        title: 'Erro ao registrar vendas',
+        description: err.message,
+        variant: 'destructive',
+      });
+      return false;
     } finally {
       setIsLoading(false);
     }
@@ -208,6 +263,7 @@ export default function useSales(userId: string | undefined): UseSalesReturn {
     isLoading,
     error,
     createSale,
+    createBatchSales,
     updateSale,
     deleteSale,
     fetchSales,

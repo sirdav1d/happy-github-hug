@@ -1,12 +1,12 @@
 import React, { useState } from 'react';
 import { format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
-import { Trash2, Edit2, User, MapPin, Calendar, DollarSign, Tag } from 'lucide-react';
+import { Trash2, Edit2, User, MapPin, Calendar, DollarSign, Tag, Layers, Upload } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle, AlertDialogTrigger } from '@/components/ui/alert-dialog';
-import { Sale, LEAD_SOURCE_OPTIONS } from '@/types/sales';
+import { Sale, LEAD_SOURCE_OPTIONS, ENTRY_TYPE_OPTIONS, EntryType } from '@/types/sales';
 import { cn } from '@/lib/utils';
 
 interface SalesListProps {
@@ -27,6 +27,12 @@ const SalesList: React.FC<SalesListProps> = ({ sales, isLoading, onDelete }) => 
   const getLeadSourceLabel = (source: string | null | undefined) => {
     if (!source) return null;
     return LEAD_SOURCE_OPTIONS.find(o => o.value === source)?.label || source;
+  };
+
+  const getEntryTypeInfo = (entryType: EntryType | null | undefined) => {
+    if (!entryType || entryType === 'individual') return null;
+    const option = ENTRY_TYPE_OPTIONS.find(o => o.value === entryType);
+    return option ? { label: option.label, icon: entryType === 'import' ? Upload : Layers } : null;
   };
 
   const formatCurrency = (value: number) => {
@@ -84,9 +90,17 @@ const SalesList: React.FC<SalesListProps> = ({ sales, isLoading, onDelete }) => 
                     Novo cliente
                   </Badge>
                 )}
-              </div>
-              
-              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
+                {(() => {
+                  const entryInfo = getEntryTypeInfo(sale.entry_type);
+                  if (!entryInfo) return null;
+                  const Icon = entryInfo.icon;
+                  return (
+                    <Badge variant="outline" className="text-xs bg-blue-500/10 text-blue-500 border-blue-500/20">
+                      <Icon size={10} className="mr-1" />
+                      {entryInfo.label}
+                    </Badge>
+                  );
+                })()}
                 <span className="flex items-center gap-1">
                   <User size={14} className="text-blue-500" />
                   {sale.salesperson_name}
@@ -108,7 +122,9 @@ const SalesList: React.FC<SalesListProps> = ({ sales, isLoading, onDelete }) => 
                   </span>
                 )}
               </div>
+              </div>
               
+              <div className="flex items-center gap-4 text-sm text-muted-foreground flex-wrap">
               {sale.product_service && (
                 <p className="text-xs text-muted-foreground/60">
                   {sale.product_service}
