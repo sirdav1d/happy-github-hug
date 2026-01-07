@@ -31,6 +31,8 @@ interface SidebarProps {
   isDarkMode?: boolean;
   onToggleTheme?: () => void;
   customLogoUrl?: string;
+  isOpen?: boolean;
+  onClose?: () => void;
 }
 
 interface NavItem {
@@ -55,7 +57,9 @@ const Sidebar: React.FC<SidebarProps> = ({
   userRole = 'consultant',
   isDarkMode,
   onToggleTheme,
-  customLogoUrl
+  customLogoUrl,
+  isOpen = true,
+  onClose
 }) => {
   const sections: Section[] = [
     {
@@ -96,11 +100,37 @@ const Sidebar: React.FC<SidebarProps> = ({
     }
   ];
 
+  const handleNavClick = (view: ViewState) => {
+    onChangeView(view);
+    onClose?.();
+  };
+
   return (
-    <aside className="w-64 bg-card/80 backdrop-blur-xl border-r border-border h-screen fixed left-0 top-0 flex flex-col z-10 no-print shadow-2xl transition-colors duration-300">
-      <div className="p-6 border-b border-border">
-        <Logo customLogoUrl={customLogoUrl} />
-      </div>
+    <>
+      {/* Mobile overlay */}
+      {isOpen && (
+        <div 
+          className="md:hidden fixed inset-0 bg-black/50 z-40 transition-opacity"
+          onClick={onClose}
+        />
+      )}
+      
+      <aside className={`
+        w-64 bg-card/95 backdrop-blur-xl border-r border-border h-screen fixed left-0 top-0 flex flex-col z-50 no-print shadow-2xl transition-all duration-300
+        ${isOpen ? 'translate-x-0' : '-translate-x-full'}
+        md:translate-x-0
+      `}>
+        <div className="p-6 border-b border-border flex items-center justify-between">
+          <Logo customLogoUrl={customLogoUrl} />
+          {onClose && (
+            <button 
+              onClick={onClose}
+              className="md:hidden p-1 rounded-lg hover:bg-muted text-muted-foreground"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </button>
+          )}
+        </div>
 
       <nav className="flex-1 p-4 overflow-y-auto scrollbar-thin">
         {sections.map((section, sectionIdx) => {
@@ -129,7 +159,7 @@ const Sidebar: React.FC<SidebarProps> = ({
                   return (
                     <button
                       key={item.id}
-                      onClick={() => onChangeView(item.id)}
+                      onClick={() => handleNavClick(item.id)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden ${
                         isActive
                           ? 'bg-primary/10 text-primary shadow-[0_0_15px_hsl(var(--primary)/0.15)]'
@@ -173,7 +203,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
         <div className="grid grid-cols-2 gap-2">
           <button
-            onClick={() => onChangeView('input-center')}
+            onClick={() => handleNavClick('input-center')}
             className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium transition-all group ${
               currentView === 'input-center'
                 ? 'bg-emerald-500/10 text-emerald-500 border border-emerald-500/30'
@@ -185,7 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           </button>
 
           <button
-            onClick={onOpenUpload}
+            onClick={() => { onOpenUpload(); onClose?.(); }}
             className="flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-medium bg-card/50 text-muted-foreground hover:bg-card hover:text-foreground border border-dashed border-border hover:border-primary transition-all group"
           >
             <Upload size={14} strokeWidth={2} className="group-hover:text-primary" />
@@ -196,6 +226,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         <p className="text-[9px] text-muted-foreground/50 text-center pt-1 font-mono">v2.0 • CI</p>
       </div>
     </aside>
+    </>
   );
 };
 
