@@ -61,7 +61,7 @@ export const LEAD_STATUS_CONFIG: Record<LeadStatus, {
   negociacao: { label: 'Negociação', color: 'text-pink-500', bgColor: 'bg-pink-500', order: 5 },
   fechado_ganho: { label: 'Fechamento', color: 'text-emerald-500', bgColor: 'bg-emerald-500', order: 6 },
   fechado_perdido: { label: 'Perdido', color: 'text-red-500', bgColor: 'bg-red-500', order: 7 },
-  pos_vendas: { label: 'Pós-vendas', color: 'text-teal-500', bgColor: 'bg-teal-500', order: 8 }
+  pos_vendas: { label: 'Pós-Venda', color: 'text-teal-500', bgColor: 'bg-teal-500', order: 8 }
 };
 
 // Etapas ativas do funil (para exibição no Kanban)
