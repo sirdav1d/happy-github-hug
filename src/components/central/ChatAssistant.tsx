@@ -19,7 +19,7 @@ const ChatAssistant = ({ data }: ChatAssistantProps) => {
     {
       id: "1",
       role: "model",
-      text: `Olá! 👋 Sou seu assistente de vendas da ${data.companyName}. Posso ajudar com análises de desempenho, insights sobre suas métricas e sugestões estratégicas. Como posso ajudar?`,
+      text: `Olá! 👋 Eu sou a IRIS, sua assistente de inteligência comercial da ${data.companyName}.\n\nTenho acesso aos seus dados de vendas, metas e performance da equipe. Posso ajudar com:\n\n• Análises de desempenho e tendências\n• Insights sobre métricas e KPIs\n• Sugestões estratégicas personalizadas\n• Comparativos e projeções\n\nComo posso ajudar você hoje?`,
       timestamp: new Date(),
     },
   ]);
@@ -138,7 +138,7 @@ const ChatAssistant = ({ data }: ChatAssistantProps) => {
       const fallbackMessage: ChatMessage = {
         id: (Date.now() + 1).toString(),
         role: "model",
-        text: "Desculpe, tive um problema ao processar sua pergunta. Por favor, tente novamente em alguns segundos. 🔄",
+        text: "Desculpe, tive um problema ao processar sua pergunta. Por favor, tente novamente em alguns segundos. 🔄\n\n— IRIS",
         timestamp: new Date(),
       };
       
@@ -190,14 +190,14 @@ const ChatAssistant = ({ data }: ChatAssistantProps) => {
             )}
           >
             {/* Header */}
-            <div className="flex items-center justify-between p-4 border-b border-border bg-secondary/50">
+            <div className="flex items-center justify-between p-4 border-b border-border bg-gradient-to-r from-primary/10 via-primary/5 to-transparent">
               <div className="flex items-center gap-3">
-                <div className="p-2 rounded-full bg-primary/10">
-                  <Sparkles className="h-5 w-5 text-primary" />
+                <div className="p-2 rounded-full bg-gradient-to-br from-primary to-primary/70 shadow-lg shadow-primary/25">
+                  <Sparkles className="h-5 w-5 text-primary-foreground" />
                 </div>
                 <div>
-                  <h3 className="font-semibold text-foreground">Assistente IA</h3>
-                  <p className="text-xs text-muted-foreground">Powered by Lovable AI</p>
+                  <h3 className="font-bold text-foreground tracking-tight">IRIS</h3>
+                  <p className="text-xs text-muted-foreground">Inteligência Comercial</p>
                 </div>
               </div>
               <Button
