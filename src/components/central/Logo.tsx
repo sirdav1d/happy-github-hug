@@ -50,12 +50,12 @@ const Logo: React.FC<LogoProps> = ({ collapsed = false, customLogoUrl }) => {
 
       {!collapsed && (
         <div className="flex flex-col items-center justify-center">
-          <span className="text-lg font-bold leading-none text-foreground whitespace-nowrap tracking-tight">
+          <span className="text-xl font-bold leading-none whitespace-nowrap tracking-tight bg-gradient-to-r from-indigo-600 via-blue-500 to-cyan-500 bg-clip-text text-transparent">
             Central Inteligente
           </span>
           <span
-            className={`text-[9px] font-bold uppercase tracking-widest text-center leading-tight transition-colors duration-300 block mt-1 whitespace-nowrap ${
-              isThinking ? 'text-indigo-600 dark:text-cyan-400 animate-pulse' : 'text-muted-foreground'
+            className={`text-[7px] font-semibold uppercase tracking-[0.25em] text-center leading-tight transition-all duration-300 block mt-1.5 whitespace-nowrap ${
+              isThinking ? 'text-cyan-500 dark:text-cyan-400 animate-pulse' : 'text-muted-foreground/70'
             }`}
           >
             {isThinking ? 'Processando IA...' : 'Mentorship Intelligence'}
