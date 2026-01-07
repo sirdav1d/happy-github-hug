@@ -18,6 +18,7 @@ import PGVSemanalView from "@/components/central/pgv/PGVSemanalView";
 import FIVIView from "@/components/central/fivi/FIVIView";
 import PipelineView from "@/components/central/pipeline/PipelineView";
 import ExecutiveSummaryView from "@/components/central/ExecutiveSummaryView";
+import GlossaryView from "@/components/central/GlossaryView";
 import Sidebar from "@/components/central/Sidebar";
 import MobileHeader from "@/components/central/MobileHeader";
 import ChatAssistant from "@/components/central/ChatAssistant";
@@ -270,12 +271,7 @@ const AuthenticatedApp = () => {
       case "ai-summary":
         return <ExecutiveSummaryView data={displayData} />;
       case "glossary":
-        return (
-          <div className="p-8">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Glossário</h2>
-            <p className="text-muted-foreground">Em desenvolvimento...</p>
-          </div>
-        );
+        return <GlossaryView />;
       case "admin-users":
         return (
           <div className="p-8">
