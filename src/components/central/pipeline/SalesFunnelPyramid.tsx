@@ -26,8 +26,8 @@ const SalesFunnelPyramid = ({
   onStageClick,
   activeStage
 }: SalesFunnelPyramidProps) => {
-  // Configuração de larguras para o funil (7 etapas)
-  const widthPercentages = [100, 87, 74, 61, 48, 35, 25];
+  // Configuração de larguras para o funil (7 etapas - mínimo 32% para caber conteúdo)
+  const widthPercentages = [100, 88, 76, 64, 52, 42, 32];
   
   // Cores do funil (7 etapas)
   const funnelColors = [
@@ -39,6 +39,9 @@ const SalesFunnelPyramid = ({
     'from-emerald-500 to-emerald-600',   // Fechado Ganho
     'from-teal-500 to-teal-600'          // Pós-vendas
   ];
+  
+  // Verificar se é estágio estreito para layout compacto
+  const isNarrowStage = (index: number) => index >= 5;
 
   const formatCurrency = (value: number) => {
     if (value >= 1000000) {
@@ -115,19 +118,23 @@ const SalesFunnelPyramid = ({
                       : 'polygon(0% 0%, 100% 0%, 100% 100%, 0% 100%)'
                   }}
                 >
-                  {/* Conteúdo */}
-                  <div className="flex items-center gap-4 text-white z-10">
-                    <span className="font-semibold text-sm uppercase tracking-wide">
+                  {/* Conteúdo - layout compacto para estágios estreitos */}
+                  <div className={`flex items-center text-white z-10 ${isNarrowStage(index) ? 'gap-2 px-2' : 'gap-4'}`}>
+                    <span className={`font-semibold uppercase tracking-wide ${isNarrowStage(index) ? 'text-xs' : 'text-sm'}`}>
                       {config.label}
                     </span>
-                    <div className="flex items-center gap-3 text-white/90">
-                      <span className="text-sm font-medium">
-                        {metric.count} {metric.count === 1 ? 'lead' : 'leads'}
+                    <div className={`flex items-center text-white/90 ${isNarrowStage(index) ? 'gap-1' : 'gap-3'}`}>
+                      <span className={`font-medium ${isNarrowStage(index) ? 'text-xs' : 'text-sm'}`}>
+                        {metric.count}
                       </span>
-                      <span className="text-xs opacity-75">|</span>
-                      <span className="text-sm">
-                        {formatCurrency(metric.value)}
-                      </span>
+                      {!isNarrowStage(index) && (
+                        <>
+                          <span className="text-xs opacity-75">|</span>
+                          <span className="text-sm">
+                            {formatCurrency(metric.value)}
+                          </span>
+                        </>
+                      )}
                       {index > 0 && (
                         <>
                           <span className="text-xs opacity-75">|</span>
