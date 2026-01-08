@@ -150,6 +150,111 @@ export type Database = {
           },
         ]
       }
+      demo_mentoring_sessions: {
+        Row: {
+          consultant_id: string
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          meeting_link: string | null
+          notes: string | null
+          scheduled_at: string
+          status: string | null
+          student_company: string
+          student_email: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_link?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: string | null
+          student_company: string
+          student_email: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_link?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: string | null
+          student_company?: string
+          student_email?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      demo_students: {
+        Row: {
+          alerts: Json | null
+          annual_goal: number | null
+          annual_realized: number | null
+          company_name: string
+          consultant_id: string
+          created_at: string
+          email: string
+          id: string
+          kpis: Json | null
+          last_upload_date: string | null
+          mentorship_start_date: string | null
+          monthly_data: Json | null
+          segment: string | null
+          team: Json | null
+          team_size: number | null
+          updated_at: string
+        }
+        Insert: {
+          alerts?: Json | null
+          annual_goal?: number | null
+          annual_realized?: number | null
+          company_name: string
+          consultant_id: string
+          created_at?: string
+          email: string
+          id?: string
+          kpis?: Json | null
+          last_upload_date?: string | null
+          mentorship_start_date?: string | null
+          monthly_data?: Json | null
+          segment?: string | null
+          team?: Json | null
+          team_size?: number | null
+          updated_at?: string
+        }
+        Update: {
+          alerts?: Json | null
+          annual_goal?: number | null
+          annual_realized?: number | null
+          company_name?: string
+          consultant_id?: string
+          created_at?: string
+          email?: string
+          id?: string
+          kpis?: Json | null
+          last_upload_date?: string | null
+          mentorship_start_date?: string | null
+          monthly_data?: Json | null
+          segment?: string | null
+          team?: Json | null
+          team_size?: number | null
+          updated_at?: string
+        }
+        Relationships: []
+      }
       fivi_sessions: {
         Row: {
           actions_executed: string | null

@@ -64,17 +64,28 @@ export function useMentoringSessions(): UseMentoringSessionsReturn {
     setError(null);
 
     try {
-      const { data, error: fetchError } = await supabase
-        .from('mentoring_sessions')
-        .select('*')
-        .eq('consultant_id', user.id)
-        .order('scheduled_at', { ascending: true });
+      // Fetch real and demo sessions in parallel
+      const [realSessionsResult, demoSessionsResult] = await Promise.all([
+        supabase
+          .from('mentoring_sessions')
+          .select('*')
+          .eq('consultant_id', user.id)
+          .order('scheduled_at', { ascending: true }),
+        supabase
+          .from('demo_mentoring_sessions')
+          .select('*')
+          .eq('consultant_id', user.id)
+          .order('scheduled_at', { ascending: true })
+      ]);
 
-      if (fetchError) throw fetchError;
+      if (realSessionsResult.error) throw realSessionsResult.error;
 
-      // Enrich with student info
-      const enrichedSessions: MentoringSession[] = await Promise.all(
-        (data || []).map(async (session) => {
+      const realSessions = realSessionsResult.data || [];
+      const demoSessions = demoSessionsResult.data || [];
+
+      // Enrich real sessions with student info
+      const enrichedRealSessions: MentoringSession[] = await Promise.all(
+        realSessions.map(async (session) => {
           // Try to get student info from invites/profiles
           const { data: invite } = await supabase
             .from('invites')
@@ -96,7 +107,29 @@ export function useMentoringSessions(): UseMentoringSessionsReturn {
         })
       );
 
-      setSessions(enrichedSessions);
+      // Convert demo sessions to MentoringSession format
+      const demoMentoringSessions: MentoringSession[] = demoSessions.map((demo: any) => ({
+        id: demo.id,
+        consultant_id: demo.consultant_id,
+        student_id: demo.id, // Use demo session ID as student_id for consistency
+        student_email: demo.student_email,
+        student_company: demo.student_company,
+        title: demo.title,
+        description: demo.description,
+        scheduled_at: demo.scheduled_at,
+        duration_minutes: demo.duration_minutes || 60,
+        status: demo.status as MentoringSession['status'],
+        meeting_link: demo.meeting_link,
+        notes: demo.notes,
+        created_at: demo.created_at,
+        updated_at: demo.updated_at,
+      }));
+
+      // Combine and sort by scheduled_at
+      const allSessions = [...enrichedRealSessions, ...demoMentoringSessions]
+        .sort((a, b) => new Date(a.scheduled_at).getTime() - new Date(b.scheduled_at).getTime());
+
+      setSessions(allSessions);
     } catch (err: any) {
       console.error('Error fetching mentoring sessions:', err);
       setError(err.message || 'Erro ao carregar sessões');
