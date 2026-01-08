@@ -17,7 +17,7 @@ export default function StudentRanking({ students }: StudentRankingProps) {
 
   const rankedStudents = useMemo(() => {
     const activeStudents = students.filter(s => 
-      s.status === 'registered' && s.dashboardData
+      (s.status === 'registered' || s.status === 'demo') && s.dashboardData
     );
 
     return activeStudents
