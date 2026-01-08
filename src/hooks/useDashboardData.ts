@@ -44,8 +44,8 @@ export const useDashboardData = (userId: string | undefined): UseDashboardDataRe
     setError(null);
 
     try {
-      // Buscar dados do dashboard e vendas em paralelo
-      const [dashboardResult, salesResult] = await Promise.all([
+      // Buscar dados do dashboard, vendas e leads em paralelo
+      const [dashboardResult, salesResult, leadsResult] = await Promise.all([
         supabase
           .from("dashboard_data")
           .select("*")
@@ -54,6 +54,10 @@ export const useDashboardData = (userId: string | undefined): UseDashboardDataRe
         supabase
           .from("sales")
           .select("amount, is_new_client, acquisition_cost")
+          .eq("user_id", userId),
+        supabase
+          .from("leads")
+          .select("id, status, converted_sale_id")
           .eq("user_id", userId)
       ]);
 
@@ -63,6 +67,7 @@ export const useDashboardData = (userId: string | undefined): UseDashboardDataRe
 
       const data = dashboardResult.data;
       const salesData = salesResult.data || [];
+      const leadsData = leadsResult.data || [];
 
       if (data) {
         // Calcular KPIs dinâmicos a partir das vendas
@@ -77,6 +82,13 @@ export const useDashboardData = (userId: string | undefined): UseDashboardDataRe
         // LTV estimado: ticket médio × frequência estimada de 4 compras
         const ltv = averageTicket * 4;
 
+        // Taxa de conversão baseada em leads do pipeline
+        const totalLeads = leadsData.length;
+        const convertedLeads = leadsData.filter(
+          l => l.status === 'fechamento' || l.converted_sale_id !== null
+        ).length;
+        const conversionRate = totalLeads > 0 ? (convertedLeads / totalLeads) * 100 : 0;
+
         const storedKpis = (data.kpis as unknown as KPI) || defaultKPIs;
         
         // Mesclar KPIs calculados com os armazenados
@@ -86,8 +98,7 @@ export const useDashboardData = (userId: string | undefined): UseDashboardDataRe
           totalSalesCount: totalSales > 0 ? totalSales : storedKpis.totalSalesCount,
           cac: cac > 0 ? cac : storedKpis.cac,
           ltv: ltv > 0 ? ltv : storedKpis.ltv,
-          // Manter conversionRate se existir, pois depende de dados externos
-          conversionRate: storedKpis.conversionRate || 0,
+          conversionRate: conversionRate > 0 ? conversionRate : storedKpis.conversionRate,
         };
 
         const parsedData: DashboardData = {
