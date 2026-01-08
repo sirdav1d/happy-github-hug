@@ -99,33 +99,39 @@ const LoginView = () => {
           animate={{ opacity: 1, scale: 1 }}
           transition={{ duration: 0.8, ease: "easeOut" }}
         >
-          {/* Logo with glow */}
+          {/* Text Logo: CENTRAL.IA */}
           <motion.div 
             className="relative mx-auto mb-10"
-            whileHover={{ scale: 1.05 }}
+            whileHover={{ scale: 1.02 }}
             transition={{ type: "spring", stiffness: 300 }}
           >
-            <div className="w-36 h-36 mx-auto rounded-3xl bg-gradient-to-br from-indigo-500 via-purple-500 to-cyan-500 flex items-center justify-center shadow-2xl relative overflow-hidden">
-              {/* Animated shine effect */}
-              <motion.div
-                className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent"
-                animate={{ x: ['-100%', '200%'] }}
-                transition={{ duration: 3, repeat: Infinity, repeatDelay: 2 }}
-              />
-              <span className="text-6xl font-black text-white relative z-10">CI</span>
+            {/* Glow behind text */}
+            <div className="absolute inset-0 -z-10 blur-3xl opacity-40 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-full scale-150" />
+            
+            {/* Main text logo */}
+            <div className="flex items-baseline justify-center">
+              <span className="text-7xl font-black tracking-tight bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                CENTRAL
+              </span>
+              <motion.span 
+                className="text-7xl font-black text-cyan-400"
+                animate={{ 
+                  scale: [1, 1.2, 1],
+                  opacity: [1, 0.7, 1]
+                }}
+                transition={{ 
+                  duration: 2, 
+                  repeat: Infinity,
+                  ease: "easeInOut"
+                }}
+              >
+                .
+              </motion.span>
+              <span className="text-7xl font-black tracking-tight text-white/90">
+                IA
+              </span>
             </div>
-            {/* Glow behind logo */}
-            <div className="absolute inset-0 -z-10 blur-3xl opacity-50 bg-gradient-to-br from-indigo-500 to-cyan-500 rounded-full scale-150" />
           </motion.div>
-          
-          <motion.h2 
-            className="text-5xl font-bold text-white mb-4 tracking-tight"
-            initial={{ opacity: 0, y: 20 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: 0.3 }}
-          >
-            Central Inteligente
-          </motion.h2>
           
           <motion.p 
             className="text-slate-400 max-w-md text-lg"
@@ -173,8 +179,16 @@ const LoginView = () => {
               className="lg:hidden text-center mb-8"
               variants={itemVariants}
             >
-              <div className="w-20 h-20 mx-auto rounded-2xl bg-gradient-to-br from-indigo-500 to-cyan-500 flex items-center justify-center shadow-lg mb-4">
-                <span className="text-3xl font-black text-white">CI</span>
+              <div className="flex items-baseline justify-center">
+                <span className="text-3xl font-black tracking-tight bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+                  CENTRAL
+                </span>
+                <span className="text-3xl font-black text-cyan-400 animate-pulse">
+                  .
+                </span>
+                <span className="text-3xl font-black tracking-tight text-white/90">
+                  IA
+                </span>
               </div>
             </motion.div>
 
