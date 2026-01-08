@@ -106,7 +106,13 @@ const Sidebar: React.FC<SidebarProps> = ({
       consultantOnly: true,
       items: [
         { id: 'admin-users', label: 'Gestão de Alunos', icon: UserPlus, consultantOnly: true },
-        { id: 'settings', label: 'Configurações', icon: Settings, consultantOnly: true },
+      ]
+    },
+    {
+      label: 'Conta',
+      showSeparator: true,
+      items: [
+        { id: 'settings', label: 'Configurações', icon: Settings },
       ]
     }
   ];
