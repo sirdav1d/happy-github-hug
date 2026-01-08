@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Palette, RotateCcw, Check, Sparkles } from 'lucide-react';
+import { Palette, RotateCcw, Check, Sparkles, Upload, Trash2, Image as ImageIcon } from 'lucide-react';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -12,15 +12,21 @@ interface WhitelabelSettingsProps {
   onSave?: () => void;
 }
 
+const ALLOWED_TYPES = ['image/png', 'image/jpeg', 'image/svg+xml', 'image/webp'];
+const MAX_SIZE = 2 * 1024 * 1024; // 2MB
+
 export default function WhitelabelSettings({ onSave }: WhitelabelSettingsProps) {
   const { toast } = useToast();
-  const { settings, isLoading, saveSettings, resetToDefaults } = useWhitelabel();
+  const { settings, isLoading, saveSettings, resetToDefaults, uploadLogo, removeLogo } = useWhitelabel();
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   const [systemName, setSystemName] = useState('');
   const [selectedPreset, setSelectedPreset] = useState<number | null>(null);
   const [customPrimary, setCustomPrimary] = useState('');
   const [customAccent, setCustomAccent] = useState('');
   const [isSaving, setIsSaving] = useState(false);
+  const [isUploadingLogo, setIsUploadingLogo] = useState(false);
+  const [dragActive, setDragActive] = useState(false);
 
   useEffect(() => {
     if (settings) {
@@ -94,6 +100,71 @@ export default function WhitelabelSettings({ onSave }: WhitelabelSettingsProps) 
     }
   };
 
+  const handleFileSelect = async (file: File) => {
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      toast({
+        title: 'Tipo inválido',
+        description: 'Use PNG, JPG, SVG ou WEBP.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    if (file.size > MAX_SIZE) {
+      toast({
+        title: 'Arquivo muito grande',
+        description: 'O tamanho máximo é 2MB.',
+        variant: 'destructive',
+      });
+      return;
+    }
+
+    setIsUploadingLogo(true);
+    try {
+      const url = await uploadLogo(file);
+      if (url) {
+        toast({ title: 'Logo atualizada!', description: 'Sua logomarca foi carregada com sucesso.' });
+      } else {
+        throw new Error('Upload failed');
+      }
+    } catch {
+      toast({ title: 'Erro no upload', description: 'Não foi possível carregar a imagem.', variant: 'destructive' });
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleRemoveLogo = async () => {
+    setIsUploadingLogo(true);
+    try {
+      const success = await removeLogo();
+      if (success) {
+        toast({ title: 'Logo removida', description: 'O ícone padrão será exibido.' });
+      }
+    } finally {
+      setIsUploadingLogo(false);
+    }
+  };
+
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === 'dragenter' || e.type === 'dragover') {
+      setDragActive(true);
+    } else if (e.type === 'dragleave') {
+      setDragActive(false);
+    }
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+    if (e.dataTransfer.files?.[0]) {
+      handleFileSelect(e.dataTransfer.files[0]);
+    }
+  };
+
   // Preview color conversion (HSL to hex for display)
   const hslToPreviewStyle = (hsl: string) => {
     return { backgroundColor: `hsl(${hsl})` };
@@ -124,6 +195,69 @@ export default function WhitelabelSettings({ onSave }: WhitelabelSettingsProps) 
         </CardHeader>
         
         <CardContent className="space-y-6">
+          {/* Logo Upload */}
+          <div className="space-y-3">
+            <Label>Logomarca</Label>
+            <div className="flex items-start gap-4">
+              {/* Preview */}
+              <div className="w-16 h-16 rounded-xl border border-border bg-muted/30 flex items-center justify-center overflow-hidden flex-shrink-0">
+                {settings?.logoUrl ? (
+                  <img src={settings.logoUrl} alt="Logo" className="w-full h-full object-contain p-1" />
+                ) : (
+                  <ImageIcon className="w-8 h-8 text-muted-foreground" />
+                )}
+              </div>
+
+              {/* Upload area */}
+              <div className="flex-1">
+                <div
+                  onDragEnter={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDragOver={handleDrag}
+                  onDrop={handleDrop}
+                  onClick={() => fileInputRef.current?.click()}
+                  className={`border-2 border-dashed rounded-lg p-4 text-center cursor-pointer transition-colors ${
+                    dragActive ? 'border-primary bg-primary/5' : 'border-border hover:border-primary/50'
+                  }`}
+                >
+                  <input
+                    ref={fileInputRef}
+                    type="file"
+                    accept=".png,.jpg,.jpeg,.svg,.webp"
+                    className="hidden"
+                    onChange={(e) => e.target.files?.[0] && handleFileSelect(e.target.files[0])}
+                  />
+                  {isUploadingLogo ? (
+                    <p className="text-sm text-muted-foreground animate-pulse">Carregando...</p>
+                  ) : (
+                    <>
+                      <Upload className="w-5 h-5 mx-auto mb-1 text-muted-foreground" />
+                      <p className="text-sm text-muted-foreground">
+                        Arraste ou clique para enviar
+                      </p>
+                      <p className="text-xs text-muted-foreground/70 mt-1">
+                        PNG, JPG, SVG ou WEBP • Máx 2MB
+                      </p>
+                    </>
+                  )}
+                </div>
+
+                {settings?.logoUrl && (
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleRemoveLogo}
+                    disabled={isUploadingLogo}
+                    className="mt-2 text-destructive hover:text-destructive"
+                  >
+                    <Trash2 className="w-4 h-4 mr-1" />
+                    Remover Logo
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+
           {/* System Name */}
           <div className="space-y-2">
             <Label htmlFor="systemName">Nome do Sistema</Label>

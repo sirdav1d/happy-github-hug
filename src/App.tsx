@@ -31,6 +31,7 @@ import ChatAssistant from "@/components/central/ChatAssistant";
 import UploadModal from "@/components/central/UploadModal";
 import useUploadSheet from "@/hooks/useUploadSheet";
 import useDashboardData from "@/hooks/useDashboardData";
+import useWhitelabel from "@/hooks/useWhitelabel";
 import { useIsMobile } from "@/hooks/use-mobile";
 import { DashboardData, ViewState, UploadConfig } from "@/types";
 
@@ -142,6 +143,7 @@ const AuthenticatedApp = () => {
   const [showOnboarding, setShowOnboarding] = useState(false);
   const isMobile = useIsMobile();
   const { processFile, isProcessing, processedData, reset } = useUploadSheet();
+  const { settings: whitelabelSettings } = useWhitelabel();
   
   // Se visualizando aluno, usar ID do aluno; caso contrário, usar ID do usuário atual
   const effectiveUserId = viewAsStudent?.id || user?.id;
@@ -360,6 +362,7 @@ const AuthenticatedApp = () => {
           isOpen={sidebarOpen}
           onClose={() => setSidebarOpen(false)}
           dashboardData={displayData}
+          customLogoUrl={whitelabelSettings?.logoUrl}
         />
         
         <main className="flex-1 md:ml-64 pt-14 md:pt-0 p-4 md:p-6 overflow-auto">

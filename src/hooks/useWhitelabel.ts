@@ -10,6 +10,7 @@ export interface WhitelabelSettings {
   accentColor: string;
   sidebarColor: string;
   faviconUrl?: string;
+  logoUrl?: string;
 }
 
 interface UseWhitelabelReturn {
@@ -18,6 +19,8 @@ interface UseWhitelabelReturn {
   saveSettings: (newSettings: Partial<WhitelabelSettings>) => Promise<boolean>;
   applyTheme: () => void;
   resetToDefaults: () => Promise<boolean>;
+  uploadLogo: (file: File) => Promise<string | null>;
+  removeLogo: () => Promise<boolean>;
 }
 
 const DEFAULT_SETTINGS: Omit<WhitelabelSettings, 'userId'> = {
@@ -96,6 +99,7 @@ export default function useWhitelabel(): UseWhitelabelReturn {
           accentColor: data.accent_color || DEFAULT_SETTINGS.accentColor,
           sidebarColor: data.sidebar_color || DEFAULT_SETTINGS.sidebarColor,
           faviconUrl: data.favicon_url || undefined,
+          logoUrl: data.logo_url || undefined,
         });
       } else {
         // No settings yet, use defaults
@@ -190,11 +194,71 @@ export default function useWhitelabel(): UseWhitelabelReturn {
     return saveSettings(DEFAULT_SETTINGS);
   };
 
+  const uploadLogo = async (file: File): Promise<string | null> => {
+    if (!user?.id) return null;
+
+    try {
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}/logo.${fileExt}`;
+
+      // Delete existing logo if any
+      await supabase.storage.from('logos').remove([fileName]);
+
+      // Upload new logo
+      const { error: uploadError } = await supabase.storage
+        .from('logos')
+        .upload(fileName, file, { upsert: true });
+
+      if (uploadError) throw uploadError;
+
+      // Get public URL
+      const { data: { publicUrl } } = supabase.storage
+        .from('logos')
+        .getPublicUrl(fileName);
+
+      // Save URL to database
+      await saveSettings({ logoUrl: publicUrl });
+
+      return publicUrl;
+    } catch (error) {
+      console.error('Error uploading logo:', error);
+      return null;
+    }
+  };
+
+  const removeLogo = async (): Promise<boolean> => {
+    if (!user?.id) return false;
+
+    try {
+      // List and remove all files in user's folder
+      const { data: files } = await supabase.storage
+        .from('logos')
+        .list(user.id);
+
+      if (files && files.length > 0) {
+        const filePaths = files.map(f => `${user.id}/${f.name}`);
+        await supabase.storage.from('logos').remove(filePaths);
+      }
+
+      // Clear URL in database
+      await saveSettings({ logoUrl: undefined });
+
+      setSettings(prev => prev ? { ...prev, logoUrl: undefined } : null);
+
+      return true;
+    } catch (error) {
+      console.error('Error removing logo:', error);
+      return false;
+    }
+  };
+
   return {
     settings,
     isLoading,
     saveSettings,
     applyTheme,
     resetToDefaults,
+    uploadLogo,
+    removeLogo,
   };
 }
