@@ -62,7 +62,7 @@ const Logo: React.FC<LogoProps> = ({ collapsed = false, customLogoUrl, systemNam
 
       {!collapsed && (
         <div className="flex flex-col items-center justify-center">
-          <span className="text-xl font-bold leading-none whitespace-nowrap tracking-tight text-primary">
+          <span className="text-xl font-bold leading-none whitespace-nowrap tracking-tight bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
             {displayName}
           </span>
           <span
