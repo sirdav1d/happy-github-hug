@@ -18,6 +18,7 @@ import RMRView from "@/components/central/rmr/RMRView";
 import PGVSemanalView from "@/components/central/pgv/PGVSemanalView";
 import FIVIView from "@/components/central/fivi/FIVIView";
 import PipelineView from "@/components/central/pipeline/PipelineView";
+import { useLeads } from "@/hooks/useLeads";
 import ExecutiveSummaryView from "@/components/central/ExecutiveSummaryView";
 import GlossaryView from "@/components/central/GlossaryView";
 import StudentsView from "@/components/central/students/StudentsView";
@@ -145,6 +146,7 @@ const AuthenticatedApp = () => {
   // Se visualizando aluno, usar ID do aluno; caso contrário, usar ID do usuário atual
   const effectiveUserId = viewAsStudent?.id || user?.id;
   const { dashboardData, isLoading: isLoadingData, saveData, mergeData, fetchData } = useDashboardData(effectiveUserId);
+  const { leads, isLoading: leadsLoading } = useLeads();
 
   // Mostrar onboarding se não completou
   useEffect(() => {
@@ -287,7 +289,14 @@ const AuthenticatedApp = () => {
           />
         );
       case "insights":
-        return <InsightsView data={displayData} />;
+        return (
+          <InsightsView 
+            data={displayData} 
+            leads={leads}
+            leadsLoading={leadsLoading}
+            onNavigate={setCurrentView}
+          />
+        );
       case "settings":
         return (
           <SettingsView 
