@@ -1,195 +1,99 @@
-import { motion } from "framer-motion";
-import { Lightbulb, TrendingUp, TrendingDown, AlertTriangle, CheckCircle, Target, Users, DollarSign } from "lucide-react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { useEffect, useState } from "react";
+import { motion, AnimatePresence } from "framer-motion";
+import { 
+  Sparkles, 
+  TrendingUp, 
+  TrendingDown, 
+  AlertTriangle, 
+  CheckCircle, 
+  Target, 
+  Users, 
+  DollarSign,
+  BarChart3,
+  Zap,
+  RefreshCw,
+  Lightbulb,
+  ArrowRight
+} from "lucide-react";
+import { Card, CardContent } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { DashboardData } from "@/types";
 import { cn } from "@/lib/utils";
+import { useIrisInsights, AIInsight } from "@/hooks/useIrisInsights";
 
 interface InsightsViewProps {
   data: DashboardData;
 }
 
-interface Insight {
-  id: string;
-  type: "success" | "warning" | "info" | "danger";
-  title: string;
-  description: string;
-  icon: typeof TrendingUp;
-  metric?: string;
-}
+const categoryConfig: Record<string, { icon: typeof TrendingUp; label: string; color: string }> = {
+  performance: { icon: BarChart3, label: 'Performance', color: 'text-blue-500' },
+  growth: { icon: TrendingUp, label: 'Crescimento', color: 'text-emerald-500' },
+  efficiency: { icon: Target, label: 'Eficiência', color: 'text-purple-500' },
+  team: { icon: Users, label: 'Equipe', color: 'text-orange-500' },
+  opportunity: { icon: Lightbulb, label: 'Oportunidade', color: 'text-amber-500' },
+};
+
+const typeConfig: Record<string, { bg: string; border: string; icon: string; badge: string }> = {
+  success: {
+    bg: 'bg-emerald-500/10',
+    border: 'border-emerald-500/20',
+    icon: 'text-emerald-500',
+    badge: 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400',
+  },
+  warning: {
+    bg: 'bg-amber-500/10',
+    border: 'border-amber-500/20',
+    icon: 'text-amber-500',
+    badge: 'bg-amber-500/20 text-amber-600 dark:text-amber-400',
+  },
+  danger: {
+    bg: 'bg-destructive/10',
+    border: 'border-destructive/20',
+    icon: 'text-destructive',
+    badge: 'bg-destructive/20 text-destructive',
+  },
+  info: {
+    bg: 'bg-primary/10',
+    border: 'border-primary/20',
+    icon: 'text-primary',
+    badge: 'bg-primary/20 text-primary',
+  },
+};
+
+const getTypeIcon = (type: AIInsight['type']) => {
+  switch (type) {
+    case 'success': return CheckCircle;
+    case 'warning': return AlertTriangle;
+    case 'danger': return TrendingDown;
+    default: return Zap;
+  }
+};
 
 const InsightsView = ({ data }: InsightsViewProps) => {
-  const formatCurrency = (value: number) => {
-    return new Intl.NumberFormat("pt-BR", {
-      style: "currency",
-      currency: "BRL",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    }).format(value);
+  const { insights, isLoading, error, fetchInsights, lastUpdated } = useIrisInsights();
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  
+  // Get current year from data
+  const selectedYear = data.currentYearData[0]?.year || new Date().getFullYear();
+
+  useEffect(() => {
+    if (data) {
+      fetchInsights(data, selectedYear);
+    }
+  }, [data, selectedYear, fetchInsights]);
+
+  const handleRefresh = () => {
+    // Clear cache and refetch
+    localStorage.removeItem('iris_insights_cache');
+    fetchInsights(data, selectedYear);
   };
 
-  // Generate insights based on data
-  const generateInsights = (): Insight[] => {
-    const insights: Insight[] = [];
-    const { kpis, currentYearData, team } = data;
+  const filteredInsights = selectedCategory 
+    ? insights.filter(i => i.category === selectedCategory)
+    : insights;
 
-    // Progress insight
-    const progress = (kpis.annualRealized / kpis.annualGoal) * 100;
-    const completedMonths = currentYearData.filter((m) => m.revenue > 0).length;
-    const expectedProgress = (completedMonths / 12) * 100;
-
-    if (progress >= expectedProgress) {
-      insights.push({
-        id: "progress-ahead",
-        type: "success",
-        title: "Performance Acima do Esperado",
-        description: `Você está ${(progress - expectedProgress).toFixed(1)}% acima do ritmo ideal para alcançar sua meta anual.`,
-        icon: CheckCircle,
-        metric: `${progress.toFixed(1)}% completo`,
-      });
-    } else {
-      insights.push({
-        id: "progress-behind",
-        type: "warning",
-        title: "Atenção ao Ritmo de Vendas",
-        description: `Você está ${(expectedProgress - progress).toFixed(1)}% abaixo do ritmo ideal. Considere ajustar suas estratégias.`,
-        icon: AlertTriangle,
-        metric: `${progress.toFixed(1)}% completo`,
-      });
-    }
-
-    // Growth insight
-    if (kpis.lastYearGrowth > 0) {
-      insights.push({
-        id: "growth-positive",
-        type: "success",
-        title: "Crescimento Consistente",
-        description: `Você cresceu ${kpis.lastYearGrowth}% em relação ao ano anterior. Continue com as estratégias que estão funcionando.`,
-        icon: TrendingUp,
-        metric: `+${kpis.lastYearGrowth}%`,
-      });
-    } else if (kpis.lastYearGrowth < 0) {
-      insights.push({
-        id: "growth-negative",
-        type: "danger",
-        title: "Queda nas Vendas",
-        description: `Houve uma redução de ${Math.abs(kpis.lastYearGrowth)}% em relação ao ano anterior. Revise suas estratégias de captação.`,
-        icon: TrendingDown,
-        metric: `${kpis.lastYearGrowth}%`,
-      });
-    }
-
-    // Conversion rate insight
-    if (kpis.conversionRate >= 30) {
-      insights.push({
-        id: "conversion-high",
-        type: "success",
-        title: "Excelente Taxa de Conversão",
-        description: `Sua taxa de conversão de ${kpis.conversionRate}% está acima da média do mercado. Mantenha a qualidade do atendimento.`,
-        icon: Target,
-        metric: `${kpis.conversionRate}%`,
-      });
-    } else if (kpis.conversionRate < 20) {
-      insights.push({
-        id: "conversion-low",
-        type: "warning",
-        title: "Oportunidade de Melhoria na Conversão",
-        description: `Uma taxa de conversão de ${kpis.conversionRate}% indica espaço para melhorias no processo de vendas.`,
-        icon: Target,
-        metric: `${kpis.conversionRate}%`,
-      });
-    }
-
-    // LTV/CAC insight
-    const ltvCacRatio = kpis.cac > 0 ? kpis.ltv / kpis.cac : 0;
-    if (ltvCacRatio >= 3) {
-      insights.push({
-        id: "ltv-cac-good",
-        type: "success",
-        title: "Ótima Relação LTV/CAC",
-        description: `Sua relação LTV/CAC de ${ltvCacRatio.toFixed(1)}x indica que o investimento em aquisição está gerando bons retornos.`,
-        icon: DollarSign,
-        metric: `${ltvCacRatio.toFixed(1)}x`,
-      });
-    } else if (ltvCacRatio > 0 && ltvCacRatio < 2) {
-      insights.push({
-        id: "ltv-cac-low",
-        type: "danger",
-        title: "LTV/CAC Precisa Melhorar",
-        description: `Uma relação LTV/CAC de ${ltvCacRatio.toFixed(1)}x está abaixo do ideal. Revise seus custos de aquisição.`,
-        icon: DollarSign,
-        metric: `${ltvCacRatio.toFixed(1)}x`,
-      });
-    }
-
-    // Team insight
-    const activeTeam = team.filter((m) => m.active && !m.isPlaceholder);
-    if (activeTeam.length > 0) {
-      const avgPerformance = activeTeam.reduce((sum, m) => {
-        const perf = m.monthlyGoal > 0 ? (m.totalRevenue / m.monthlyGoal) * 100 : 0;
-        return sum + perf;
-      }, 0) / activeTeam.length;
-
-      if (avgPerformance >= 100) {
-        insights.push({
-          id: "team-performing",
-          type: "success",
-          title: "Equipe Performando Bem",
-          description: `A performance média da equipe está em ${avgPerformance.toFixed(1)}%, superando as metas estabelecidas.`,
-          icon: Users,
-          metric: `${avgPerformance.toFixed(1)}%`,
-        });
-      }
-    }
-
-    // Ticket insight
-    if (kpis.averageTicket > 0) {
-      insights.push({
-        id: "ticket-info",
-        type: "info",
-        title: "Ticket Médio Atual",
-        description: `Seu ticket médio de ${formatCurrency(kpis.averageTicket)} é uma métrica importante para acompanhar. Considere estratégias de upsell.`,
-        icon: DollarSign,
-        metric: formatCurrency(kpis.averageTicket),
-      });
-    }
-
-    return insights;
-  };
-
-  const insights = generateInsights();
-
-  const getTypeStyles = (type: Insight["type"]) => {
-    switch (type) {
-      case "success":
-        return {
-          bg: "bg-emerald-500/10",
-          border: "border-emerald-500/20",
-          icon: "text-emerald-500",
-          badge: "bg-emerald-500/20 text-emerald-600",
-        };
-      case "warning":
-        return {
-          bg: "bg-amber-500/10",
-          border: "border-amber-500/20",
-          icon: "text-amber-500",
-          badge: "bg-amber-500/20 text-amber-600",
-        };
-      case "danger":
-        return {
-          bg: "bg-destructive/10",
-          border: "border-destructive/20",
-          icon: "text-destructive",
-          badge: "bg-destructive/20 text-destructive",
-        };
-      default:
-        return {
-          bg: "bg-primary/10",
-          border: "border-primary/20",
-          icon: "text-primary",
-          badge: "bg-primary/20 text-primary",
-        };
-    }
-  };
+  const categories = [...new Set(insights.map(i => i.category))];
 
   return (
     <motion.div
@@ -197,64 +101,201 @@ const InsightsView = ({ data }: InsightsViewProps) => {
       animate={{ opacity: 1 }}
       className="space-y-6"
     >
-      {/* Header */}
+      {/* Header with IRIS branding */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
-        className="flex items-center gap-3 mb-6"
+        className="flex flex-col sm:flex-row sm:items-center justify-between gap-4"
       >
-        <div className="p-3 rounded-xl bg-primary/10">
-          <Lightbulb className="h-6 w-6 text-primary" />
+        <div className="flex items-center gap-3">
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-xl blur-lg opacity-50" />
+            <div className="relative p-3 rounded-xl bg-gradient-to-r from-violet-500 to-fuchsia-500">
+              <Sparkles className="h-6 w-6 text-white" />
+            </div>
+          </div>
+          <div>
+            <h2 className="text-xl font-semibold text-foreground flex items-center gap-2">
+              IRIS Insights
+              <Badge variant="outline" className="text-xs font-normal bg-violet-500/10 text-violet-600 dark:text-violet-400 border-violet-500/20">
+                IA
+              </Badge>
+            </h2>
+            <p className="text-sm text-muted-foreground">
+              Análises inteligentes personalizadas para seu negócio
+            </p>
+          </div>
         </div>
-        <div>
-          <h2 className="text-xl font-semibold text-foreground">Insights Inteligentes</h2>
-          <p className="text-sm text-muted-foreground">
-            Análises automáticas baseadas nos seus dados de vendas
-          </p>
+
+        <div className="flex items-center gap-3">
+          {lastUpdated && (
+            <span className="text-xs text-muted-foreground">
+              Atualizado {lastUpdated.toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}
+            </span>
+          )}
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={handleRefresh}
+            disabled={isLoading}
+            className="gap-2"
+          >
+            <RefreshCw className={cn("h-4 w-4", isLoading && "animate-spin")} />
+            Atualizar
+          </Button>
         </div>
       </motion.div>
 
+      {/* Category filters */}
+      {categories.length > 1 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.1 }}
+          className="flex flex-wrap gap-2"
+        >
+          <Button
+            variant={selectedCategory === null ? "default" : "outline"}
+            size="sm"
+            onClick={() => setSelectedCategory(null)}
+            className="text-xs"
+          >
+            Todos ({insights.length})
+          </Button>
+          {categories.map((cat) => {
+            const config = categoryConfig[cat];
+            const count = insights.filter(i => i.category === cat).length;
+            const Icon = config?.icon || Zap;
+            
+            return (
+              <Button
+                key={cat}
+                variant={selectedCategory === cat ? "default" : "outline"}
+                size="sm"
+                onClick={() => setSelectedCategory(cat)}
+                className="text-xs gap-1.5"
+              >
+                <Icon className={cn("h-3.5 w-3.5", selectedCategory !== cat && config?.color)} />
+                {config?.label || cat} ({count})
+              </Button>
+            );
+          })}
+        </motion.div>
+      )}
+
+      {/* Loading state */}
+      {isLoading && insights.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center justify-center py-16"
+        >
+          <div className="relative">
+            <div className="absolute inset-0 bg-gradient-to-r from-violet-500 to-fuchsia-500 rounded-full blur-xl opacity-30 animate-pulse" />
+            <div className="relative p-4 rounded-full bg-gradient-to-r from-violet-500 to-fuchsia-500">
+              <Sparkles className="h-8 w-8 text-white animate-pulse" />
+            </div>
+          </div>
+          <p className="mt-4 text-muted-foreground">IRIS está analisando seus dados...</p>
+        </motion.div>
+      )}
+
+      {/* Error state */}
+      {error && !isLoading && insights.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-12"
+        >
+          <AlertTriangle className="h-12 w-12 text-amber-500 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">
+            Não foi possível gerar insights
+          </h3>
+          <p className="text-muted-foreground mb-4">{error}</p>
+          <Button onClick={handleRefresh} variant="outline">
+            Tentar novamente
+          </Button>
+        </motion.div>
+      )}
+
       {/* Insights Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-        {insights.map((insight, index) => {
-          const styles = getTypeStyles(insight.type);
-          const Icon = insight.icon;
+      <AnimatePresence mode="popLayout">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {filteredInsights.map((insight, index) => {
+            const styles = typeConfig[insight.type] || typeConfig.info;
+            const TypeIcon = getTypeIcon(insight.type);
+            const CategoryIcon = categoryConfig[insight.category]?.icon || Zap;
 
-          return (
-            <motion.div
-              key={insight.id}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.1 }}
-            >
-              <Card className={cn("border", styles.bg, styles.border)}>
-                <CardContent className="p-5">
-                  <div className="flex items-start gap-4">
-                    <div className={cn("p-2 rounded-lg", styles.bg)}>
-                      <Icon className={cn("h-5 w-5", styles.icon)} />
-                    </div>
-                    <div className="flex-1">
-                      <div className="flex items-center justify-between mb-2">
-                        <h3 className="font-semibold text-foreground">{insight.title}</h3>
-                        {insight.metric && (
-                          <span className={cn("px-2 py-1 rounded-full text-xs font-medium", styles.badge)}>
-                            {insight.metric}
-                          </span>
-                        )}
+            return (
+              <motion.div
+                key={insight.id}
+                layout
+                initial={{ opacity: 0, y: 20, scale: 0.95 }}
+                animate={{ opacity: 1, y: 0, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.95 }}
+                transition={{ delay: index * 0.05 }}
+              >
+                <Card className={cn(
+                  "border h-full transition-all duration-200 hover:shadow-lg",
+                  styles.bg, 
+                  styles.border,
+                  "hover:border-opacity-40"
+                )}>
+                  <CardContent className="p-5">
+                    <div className="flex items-start gap-4">
+                      <div className={cn("p-2.5 rounded-xl", styles.bg)}>
+                        <TypeIcon className={cn("h-5 w-5", styles.icon)} />
                       </div>
-                      <p className="text-sm text-muted-foreground leading-relaxed">
-                        {insight.description}
-                      </p>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            </motion.div>
-          );
-        })}
-      </div>
+                      <div className="flex-1 min-w-0">
+                        {/* Header */}
+                        <div className="flex items-start justify-between gap-2 mb-2">
+                          <h3 className="font-semibold text-foreground leading-tight">
+                            {insight.title}
+                          </h3>
+                          {insight.metric && (
+                            <span className={cn(
+                              "px-2 py-1 rounded-full text-xs font-semibold whitespace-nowrap",
+                              styles.badge
+                            )}>
+                              {insight.metric}
+                            </span>
+                          )}
+                        </div>
 
-      {insights.length === 0 && (
+                        {/* Description */}
+                        <p className="text-sm text-muted-foreground leading-relaxed mb-3">
+                          {insight.description}
+                        </p>
+
+                        {/* Action item */}
+                        {insight.actionable && (
+                          <div className="flex items-center gap-2 text-xs">
+                            <ArrowRight className="h-3.5 w-3.5 text-primary" />
+                            <span className="text-primary font-medium">
+                              {insight.actionable}
+                            </span>
+                          </div>
+                        )}
+
+                        {/* Category badge */}
+                        <div className="flex items-center gap-1.5 mt-3 pt-3 border-t border-border/50">
+                          <CategoryIcon className={cn("h-3.5 w-3.5", categoryConfig[insight.category]?.color || 'text-muted-foreground')} />
+                          <span className="text-xs text-muted-foreground">
+                            {categoryConfig[insight.category]?.label || insight.category}
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+        </div>
+      </AnimatePresence>
+
+      {/* Empty state */}
+      {!isLoading && !error && filteredInsights.length === 0 && insights.length > 0 && (
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -262,11 +303,40 @@ const InsightsView = ({ data }: InsightsViewProps) => {
         >
           <Lightbulb className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
           <h3 className="text-lg font-medium text-foreground mb-2">
-            Nenhum insight disponível
+            Nenhum insight nesta categoria
           </h3>
           <p className="text-muted-foreground">
-            Adicione mais dados para gerar análises automáticas.
+            Selecione outra categoria ou veja todos os insights.
           </p>
+        </motion.div>
+      )}
+
+      {!isLoading && !error && insights.length === 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-center py-12"
+        >
+          <Sparkles className="h-12 w-12 text-muted-foreground/50 mx-auto mb-4" />
+          <h3 className="text-lg font-medium text-foreground mb-2">
+            Adicione dados para gerar insights
+          </h3>
+          <p className="text-muted-foreground">
+            IRIS precisa de dados de vendas para analisar e gerar recomendações.
+          </p>
+        </motion.div>
+      )}
+
+      {/* Footer attribution */}
+      {insights.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.3 }}
+          className="flex items-center justify-center gap-2 text-xs text-muted-foreground pt-4"
+        >
+          <Sparkles className="h-3.5 w-3.5 text-violet-500" />
+          <span>Análise gerada por IRIS • Inteligência de Resultados e Insights Estratégicos</span>
         </motion.div>
       )}
     </motion.div>
