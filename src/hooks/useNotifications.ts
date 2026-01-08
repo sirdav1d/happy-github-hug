@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import { useRMR } from './useRMR';
 import { useFIVI } from './useFIVI';
 import { useLeads } from './useLeads';
+import { useMentoringSessions } from './useMentoringSessions';
 import { DashboardData, Salesperson } from '@/types';
 
 export type NotificationType = 'ritual' | 'lead' | 'goal' | 'info';
@@ -31,7 +32,7 @@ export const useNotifications = (dashboardData?: DashboardData) => {
   const { meetings } = useRMR();
   const { sessions, getPendingFIVIs } = useFIVI();
   const { leads } = useLeads();
-
+  const { getUpcomingSessions } = useMentoringSessions();
   const notifications = useMemo(() => {
     const alerts: Notification[] = [];
     const now = new Date();
@@ -212,10 +213,29 @@ export const useNotifications = (dashboardData?: DashboardData) => {
       }
     }
 
+    // 7. Mentoring Sessions - Upcoming today
+    const upcomingMentorings = getUpcomingSessions(5);
+    const todayMentorings = upcomingMentorings.filter(s => {
+      const sessionDate = new Date(s.scheduled_at);
+      return sessionDate.toDateString() === now.toDateString();
+    });
+
+    if (todayMentorings.length > 0) {
+      alerts.push({
+        id: 'mentoring-today',
+        type: 'info',
+        priority: 'medium',
+        title: `${todayMentorings.length} Mentoria${todayMentorings.length > 1 ? 's' : ''} Hoje`,
+        description: `Você tem sessões agendadas para hoje.`,
+        action: { label: 'Ver Agenda', view: 'agency-global' },
+        timestamp: now,
+      });
+    }
+
     // Sort by priority (high first) then by type
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     return alerts.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-  }, [meetings, sessions, leads, dashboardData, getPendingFIVIs]);
+  }, [meetings, sessions, leads, dashboardData, getPendingFIVIs, getUpcomingSessions]);
 
   const highPriorityCount = useMemo(() => 
     notifications.filter(n => n.priority === 'high').length, 

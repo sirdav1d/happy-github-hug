@@ -1,12 +1,13 @@
 import { useState } from 'react';
 import useAgencyDashboard, { StudentDashboardData } from '@/hooks/useAgencyDashboard';
+import { useMentoringSessions } from '@/hooks/useMentoringSessions';
 import { useViewAsStudent } from '@/contexts/ViewAsStudentContext';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Progress } from '@/components/ui/progress';
-import { ScrollArea } from '@/components/ui/scroll-area';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { 
   Globe, 
   Users, 
@@ -20,10 +21,16 @@ import {
   Building2,
   Calendar,
   ArrowUpRight,
-  Loader2
+  Loader2,
+  Trophy,
+  Video
 } from 'lucide-react';
-import { formatDistanceToNow } from 'date-fns';
+import { formatDistanceToNow, format } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
+import { toast } from 'sonner';
+import StudentRanking from './StudentRanking';
+import MentoringCalendar from './MentoringCalendar';
+import MentoringScheduleModal from './MentoringScheduleModal';
 
 interface AgencyGlobalViewProps {
   onNavigate?: (view: string) => void;
@@ -31,9 +38,18 @@ interface AgencyGlobalViewProps {
 
 export default function AgencyGlobalView({ onNavigate }: AgencyGlobalViewProps) {
   const { students, metrics, isLoading, fetchData } = useAgencyDashboard();
+  const { 
+    sessions, 
+    createSession, 
+    completeSession, 
+    cancelSession, 
+    getUpcomingSessions 
+  } = useMentoringSessions();
   const { setViewAsStudent } = useViewAsStudent();
   const [searchQuery, setSearchQuery] = useState('');
   const [filterStatus, setFilterStatus] = useState<'all' | 'active' | 'pending' | 'at-risk'>('all');
+  const [activeTab, setActiveTab] = useState('overview');
+  const [showScheduleModal, setShowScheduleModal] = useState(false);
 
   const filteredStudents = students.filter(student => {
     const matchesSearch = 
@@ -79,6 +95,36 @@ export default function AgencyGlobalView({ onNavigate }: AgencyGlobalViewProps) 
     if (progress >= 50) return 'bg-amber-500';
     return 'bg-red-500';
   };
+
+  const handleScheduleSession = async (data: any) => {
+    const result = await createSession(data);
+    if (result) {
+      toast.success('Mentoria agendada com sucesso!');
+      return true;
+    }
+    toast.error('Erro ao agendar mentoria');
+    return false;
+  };
+
+  const handleCompleteSession = async (id: string) => {
+    const success = await completeSession(id);
+    if (success) {
+      toast.success('Mentoria marcada como concluída');
+    } else {
+      toast.error('Erro ao atualizar mentoria');
+    }
+  };
+
+  const handleCancelSession = async (id: string) => {
+    const success = await cancelSession(id);
+    if (success) {
+      toast.success('Mentoria cancelada');
+    } else {
+      toast.error('Erro ao cancelar mentoria');
+    }
+  };
+
+  const upcomingSessions = getUpcomingSessions(3);
 
   return (
     <div className="space-y-6">
@@ -164,83 +210,160 @@ export default function AgencyGlobalView({ onNavigate }: AgencyGlobalViewProps) 
         </Card>
       </div>
 
-      {/* Revenue Summary */}
-      <Card>
-        <CardContent className="pt-6">
-          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
-            <div>
-              <p className="text-sm text-muted-foreground">Faturamento Total dos Mentorados</p>
-              <p className="text-3xl font-bold text-foreground">{formatCurrency(metrics.totalRevenue)}</p>
+      {/* Revenue Summary + Upcoming Sessions */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+        <Card className="lg:col-span-2">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+              <div>
+                <p className="text-sm text-muted-foreground">Faturamento Total dos Mentorados</p>
+                <p className="text-3xl font-bold text-foreground">{formatCurrency(metrics.totalRevenue)}</p>
+              </div>
+              <div className="flex gap-2">
+                <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
+                  {metrics.activeStudents} ativos
+                </Badge>
+                <Badge variant="outline" className="text-amber-500 border-amber-500/30">
+                  {metrics.pendingStudents} pendentes
+                </Badge>
+              </div>
             </div>
-            <div className="flex gap-2">
-              <Badge variant="outline" className="text-emerald-500 border-emerald-500/30">
-                {metrics.activeStudents} ativos
-              </Badge>
-              <Badge variant="outline" className="text-amber-500 border-amber-500/30">
-                {metrics.pendingStudents} pendentes
-              </Badge>
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Filters and Search */}
-      <div className="flex flex-col sm:flex-row gap-4">
-        <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
-          <Input
-            placeholder="Buscar por email ou empresa..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        <div className="flex gap-2">
-          {(['all', 'active', 'pending', 'at-risk'] as const).map((status) => (
-            <Button
-              key={status}
-              variant={filterStatus === status ? 'default' : 'outline'}
-              size="sm"
-              onClick={() => setFilterStatus(status)}
-            >
-              {status === 'all' && 'Todos'}
-              {status === 'active' && 'Ativos'}
-              {status === 'pending' && 'Pendentes'}
-              {status === 'at-risk' && 'Em Risco'}
-            </Button>
-          ))}
-        </div>
-      </div>
-
-      {/* Students Grid */}
-      {isLoading && students.length === 0 ? (
-        <div className="flex items-center justify-center py-12">
-          <Loader2 className="w-8 h-8 animate-spin text-primary" />
-        </div>
-      ) : filteredStudents.length === 0 ? (
-        <Card>
-          <CardContent className="py-12 text-center">
-            <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
-            <p className="text-muted-foreground">
-              {students.length === 0 
-                ? 'Nenhum aluno cadastrado ainda' 
-                : 'Nenhum aluno encontrado com essa busca'}
-            </p>
           </CardContent>
         </Card>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-          {filteredStudents.map((student) => (
-            <StudentCard 
-              key={student.id}
-              student={student}
-              onView={() => handleViewStudent(student)}
-              formatCurrency={formatCurrency}
-              getProgressColor={getProgressColor}
-            />
-          ))}
-        </div>
-      )}
+
+        <Card>
+          <CardContent className="pt-4 pb-3">
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-sm font-medium text-foreground flex items-center gap-2">
+                <Calendar className="w-4 h-4 text-primary" />
+                Próximas Mentorias
+              </p>
+              <Button variant="ghost" size="sm" onClick={() => setActiveTab('agenda')}>
+                Ver Todas
+              </Button>
+            </div>
+            {upcomingSessions.length === 0 ? (
+              <p className="text-sm text-muted-foreground">Nenhuma mentoria agendada</p>
+            ) : (
+              <div className="space-y-2">
+                {upcomingSessions.map(session => (
+                  <div key={session.id} className="flex items-center gap-2 text-sm">
+                    <Video className="w-3 h-3 text-muted-foreground" />
+                    <span className="truncate flex-1">
+                      {session.student_company || 'Aluno'}
+                    </span>
+                    <span className="text-muted-foreground text-xs">
+                      {format(new Date(session.scheduled_at), 'dd/MM HH:mm', { locale: ptBR })}
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Tabs */}
+      <Tabs value={activeTab} onValueChange={setActiveTab}>
+        <TabsList>
+          <TabsTrigger value="overview" className="flex items-center gap-2">
+            <Users className="w-4 h-4" />
+            Visão Geral
+          </TabsTrigger>
+          <TabsTrigger value="ranking" className="flex items-center gap-2">
+            <Trophy className="w-4 h-4" />
+            Ranking
+          </TabsTrigger>
+          <TabsTrigger value="agenda" className="flex items-center gap-2">
+            <Calendar className="w-4 h-4" />
+            Agenda
+          </TabsTrigger>
+        </TabsList>
+
+        {/* Overview Tab */}
+        <TabsContent value="overview" className="mt-6 space-y-4">
+          {/* Filters and Search */}
+          <div className="flex flex-col sm:flex-row gap-4">
+            <div className="relative flex-1">
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-muted-foreground w-4 h-4" />
+              <Input
+                placeholder="Buscar por email ou empresa..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="pl-10"
+              />
+            </div>
+            <div className="flex gap-2">
+              {(['all', 'active', 'pending', 'at-risk'] as const).map((status) => (
+                <Button
+                  key={status}
+                  variant={filterStatus === status ? 'default' : 'outline'}
+                  size="sm"
+                  onClick={() => setFilterStatus(status)}
+                >
+                  {status === 'all' && 'Todos'}
+                  {status === 'active' && 'Ativos'}
+                  {status === 'pending' && 'Pendentes'}
+                  {status === 'at-risk' && 'Em Risco'}
+                </Button>
+              ))}
+            </div>
+          </div>
+
+          {/* Students Grid */}
+          {isLoading && students.length === 0 ? (
+            <div className="flex items-center justify-center py-12">
+              <Loader2 className="w-8 h-8 animate-spin text-primary" />
+            </div>
+          ) : filteredStudents.length === 0 ? (
+            <Card>
+              <CardContent className="py-12 text-center">
+                <Users className="w-12 h-12 mx-auto text-muted-foreground/50 mb-4" />
+                <p className="text-muted-foreground">
+                  {students.length === 0 
+                    ? 'Nenhum aluno cadastrado ainda' 
+                    : 'Nenhum aluno encontrado com essa busca'}
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              {filteredStudents.map((student) => (
+                <StudentCard 
+                  key={student.id}
+                  student={student}
+                  onView={() => handleViewStudent(student)}
+                  formatCurrency={formatCurrency}
+                  getProgressColor={getProgressColor}
+                />
+              ))}
+            </div>
+          )}
+        </TabsContent>
+
+        {/* Ranking Tab */}
+        <TabsContent value="ranking" className="mt-6">
+          <StudentRanking students={students} />
+        </TabsContent>
+
+        {/* Agenda Tab */}
+        <TabsContent value="agenda" className="mt-6">
+          <MentoringCalendar
+            sessions={sessions}
+            onNewSession={() => setShowScheduleModal(true)}
+            onCompleteSession={handleCompleteSession}
+            onCancelSession={handleCancelSession}
+          />
+        </TabsContent>
+      </Tabs>
+
+      {/* Schedule Modal */}
+      <MentoringScheduleModal
+        open={showScheduleModal}
+        onOpenChange={setShowScheduleModal}
+        students={students}
+        onSchedule={handleScheduleSession}
+      />
     </div>
   );
 }
