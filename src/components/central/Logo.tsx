@@ -1,5 +1,4 @@
 import { useEffect, useState } from 'react';
-import { Brain, Sparkles } from 'lucide-react';
 
 interface LogoProps {
   collapsed?: boolean;
@@ -30,13 +29,40 @@ const Logo: React.FC<LogoProps> = ({ collapsed = false, customLogoUrl, systemNam
   }, [customLogoUrl]);
 
   const showCustomLogo = customLogoUrl && !imageError;
-  const displayName = systemName || 'Central Inteligente';
+
+  // If custom system name, use different display
+  if (systemName && systemName !== 'Central Inteligente') {
+    return (
+      <div className="flex items-center gap-3 select-none">
+        {showCustomLogo ? (
+          <div className={`
+            w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden border border-border bg-card
+            ${isThinking ? 'shadow-[0_0_20px_hsl(var(--primary)/0.6)] scale-105' : 'shadow-md'} transition-all duration-500
+          `}>
+            <img 
+              src={customLogoUrl} 
+              alt="Logo" 
+              className="w-full h-full object-contain p-1" 
+              onError={() => setImageError(true)}
+            />
+          </div>
+        ) : null}
+        {!collapsed && (
+          <div className="flex flex-col items-center justify-center">
+            <span className="text-xl font-bold leading-none whitespace-nowrap tracking-tight bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              {systemName}
+            </span>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
-    <div className="flex items-center gap-3 select-none">
-      {showCustomLogo ? (
+    <div className="flex items-center gap-2 select-none">
+      {showCustomLogo && (
         <div className={`
-          w-12 h-12 flex-shrink-0 rounded-xl overflow-hidden border border-border bg-card
+          w-10 h-10 flex-shrink-0 rounded-xl overflow-hidden border border-border bg-card
           ${isThinking ? 'shadow-[0_0_20px_hsl(var(--primary)/0.6)] scale-105' : 'shadow-md'} transition-all duration-500
         `}>
           <img 
@@ -46,37 +72,30 @@ const Logo: React.FC<LogoProps> = ({ collapsed = false, customLogoUrl, systemNam
             onError={() => setImageError(true)}
           />
         </div>
-      ) : (
-        <div className={`
-          w-12 h-12 flex-shrink-0 rounded-xl shadow-md border transition-all duration-500
-          grid place-items-center bg-gradient-to-br from-primary via-primary to-accent relative overflow-hidden
-          ${isThinking ? 'shadow-[0_0_25px_hsl(var(--primary)/0.7)] scale-105' : 'shadow-[0_0_15px_hsl(var(--primary)/0.3)]'}
-        `}>
-          {/* Pulse ring effect */}
-          <div className={`absolute inset-0 rounded-xl bg-gradient-to-br from-primary/20 to-accent/20 ${isThinking ? 'animate-ping' : 'animate-pulse'}`} style={{ animationDuration: isThinking ? '1s' : '2s' }} />
-          
-          {/* Sparkle accent */}
-          <Sparkles
-            size={10}
-            className={`absolute top-1 right-1 text-primary-foreground/60 transition-all duration-500 ${isThinking ? 'opacity-100 animate-pulse' : 'opacity-40'}`}
-          />
-          
-          {/* Main Brain icon */}
-          <Brain
-            size={26}
-            strokeWidth={1.8}
-            className={`relative z-10 transition-all duration-500 text-primary-foreground drop-shadow-sm ${isThinking ? 'animate-pulse scale-110' : ''}`}
-          />
-        </div>
       )}
 
       {!collapsed && (
-        <div className="flex flex-col items-center justify-center">
-          <span className="text-xl font-bold leading-none whitespace-nowrap tracking-tight bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
-            {displayName}
-          </span>
+        <div className="flex flex-col items-start">
+          {/* Main logo text: CENTRAL.IA */}
+          <div className="flex items-baseline">
+            <span className="text-2xl font-black tracking-tight bg-gradient-to-r from-indigo-400 via-blue-400 to-cyan-400 bg-clip-text text-transparent">
+              CENTRAL
+            </span>
+            <span 
+              className={`text-2xl font-black text-accent transition-all duration-300 ${
+                isThinking ? 'animate-pulse scale-125' : ''
+              }`}
+            >
+              .
+            </span>
+            <span className="text-2xl font-black tracking-tight text-foreground/90">
+              IA
+            </span>
+          </div>
+          
+          {/* Subtitle */}
           <span
-            className={`text-[7px] font-semibold uppercase tracking-[0.25em] text-center leading-tight transition-all duration-300 block mt-1.5 whitespace-nowrap ${
+            className={`text-[7px] font-semibold uppercase tracking-[0.25em] leading-tight transition-all duration-300 whitespace-nowrap ${
               isThinking ? 'text-primary animate-pulse' : 'text-muted-foreground/70'
             }`}
           >
