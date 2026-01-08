@@ -7,7 +7,7 @@ export interface StudentDashboardData {
   email: string;
   companyName?: string;
   segment?: string;
-  status: 'pending' | 'registered';
+  status: 'pending' | 'registered' | 'demo';
   registeredUserId?: string;
   dashboardData?: {
     annualGoal: number;
@@ -21,6 +21,7 @@ export interface StudentDashboardData {
     type: 'success' | 'warning' | 'danger';
     message: string;
   }[];
+  isDemo?: boolean;
 }
 
 export interface AgencyMetrics {
@@ -54,24 +55,35 @@ export default function useAgencyDashboard(): UseAgencyDashboardReturn {
     setError(null);
 
     try {
-      // Fetch invites created by this consultant
-      const { data: invites, error: invitesError } = await supabase
-        .from('invites')
-        .select('*')
-        .eq('created_by', user.id)
-        .order('created_at', { ascending: false });
+      // Fetch invites and demo students in parallel
+      const [invitesResult, demoStudentsResult] = await Promise.all([
+        supabase
+          .from('invites')
+          .select('*')
+          .eq('created_by', user.id)
+          .order('created_at', { ascending: false }),
+        supabase
+          .from('demo_students')
+          .select('*')
+          .eq('consultant_id', user.id)
+          .order('company_name', { ascending: true })
+      ]);
 
-      if (invitesError) throw invitesError;
+      if (invitesResult.error) throw invitesResult.error;
 
-      // For each registered invite, fetch full dashboard data
-      const studentsData: StudentDashboardData[] = await Promise.all(
-        (invites || []).map(async (invite) => {
+      const invites = invitesResult.data || [];
+      const demoStudents = demoStudentsResult.data || [];
+
+      // Process real invites
+      const realStudentsData: StudentDashboardData[] = await Promise.all(
+        invites.map(async (invite) => {
           const studentData: StudentDashboardData = {
             id: invite.id,
             email: invite.email,
             status: invite.status as 'pending' | 'registered',
             registeredUserId: invite.registered_uid || undefined,
             alerts: [],
+            isDemo: false,
           };
 
           if (invite.status === 'registered' && invite.registered_uid) {
@@ -157,7 +169,38 @@ export default function useAgencyDashboard(): UseAgencyDashboardReturn {
         })
       );
 
-      setStudents(studentsData);
+      // Process demo students
+      const demoStudentsData: StudentDashboardData[] = demoStudents.map((demo: any) => {
+        const alerts = demo.alerts as any[] || [];
+        const monthlyData = demo.monthly_data as any[] || [];
+        const currentMonth = new Date().getMonth() + 1;
+        const currentMonthData = monthlyData.find((m: any) => m.month === currentMonth);
+
+        return {
+          id: demo.id,
+          email: demo.email,
+          companyName: demo.company_name,
+          segment: demo.segment,
+          status: 'demo' as const,
+          registeredUserId: demo.id,
+          dashboardData: {
+            annualGoal: demo.annual_goal || 0,
+            annualRealized: demo.annual_realized || 0,
+            teamSize: demo.team_size || 0,
+            lastUploadDate: demo.last_upload_date,
+            currentMonthRevenue: currentMonthData?.revenue || 0,
+            currentMonthGoal: currentMonthData?.goal || 0,
+          },
+          alerts: alerts.map((a: any) => ({
+            type: a.type as 'success' | 'warning' | 'danger',
+            message: a.message,
+          })),
+          isDemo: true,
+        };
+      });
+
+      // Combine real and demo students
+      setStudents([...realStudentsData, ...demoStudentsData]);
     } catch (err: any) {
       console.error('Error fetching agency dashboard:', err);
       setError(err.message || 'Erro ao carregar dados');
@@ -173,7 +216,7 @@ export default function useAgencyDashboard(): UseAgencyDashboardReturn {
   // Calculate aggregated metrics
   const metrics: AgencyMetrics = {
     totalStudents: students.length,
-    activeStudents: students.filter(s => s.status === 'registered').length,
+    activeStudents: students.filter(s => s.status === 'registered' || s.status === 'demo').length,
     pendingStudents: students.filter(s => s.status === 'pending').length,
     totalRevenue: students.reduce((sum, s) => sum + (s.dashboardData?.annualRealized || 0), 0),
     averageProgress: (() => {
@@ -191,7 +234,7 @@ export default function useAgencyDashboard(): UseAgencyDashboardReturn {
       s.alerts.some(a => a.type === 'danger')
     ).length,
     studentsOnTrack: students.filter(s => 
-      s.status === 'registered' && 
+      (s.status === 'registered' || s.status === 'demo') && 
       !s.alerts.some(a => a.type === 'danger' || a.type === 'warning')
     ).length,
   };
