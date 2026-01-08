@@ -182,6 +182,10 @@ export interface UserProfile {
   companyName?: string;
   segment?: string;
   createdAt: string;
+  onboarding_completed?: boolean;
+  avatar_url?: string;
+  plan_id?: string;
+  plan_expires_at?: string;
 }
 
 export interface ChatMessage {

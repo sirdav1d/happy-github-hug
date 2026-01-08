@@ -55,6 +55,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           companyName: data.company_name || undefined,
           segment: data.segment || undefined,
           createdAt: data.created_at,
+          onboarding_completed: data.onboarding_completed || false,
+          avatar_url: data.avatar_url || undefined,
+          plan_id: data.plan_id || undefined,
+          plan_expires_at: data.plan_expires_at || undefined,
         });
       }
     } catch (error) {

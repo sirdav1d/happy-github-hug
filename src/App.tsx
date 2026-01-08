@@ -5,6 +5,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ClientProvider } from "@/contexts/ClientContext";
+import { ViewAsStudentProvider, useViewAsStudent } from "@/contexts/ViewAsStudentContext";
 import LoginView from "@/components/central/LoginView";
 import DashboardView from "@/components/central/DashboardView";
 import TeamView from "@/components/central/TeamView";
@@ -20,6 +21,9 @@ import PipelineView from "@/components/central/pipeline/PipelineView";
 import ExecutiveSummaryView from "@/components/central/ExecutiveSummaryView";
 import GlossaryView from "@/components/central/GlossaryView";
 import StudentsView from "@/components/central/students/StudentsView";
+import AgencyGlobalView from "@/components/central/agency/AgencyGlobalView";
+import OnboardingWizard from "@/components/central/onboarding/OnboardingWizard";
+import ViewingAsBanner from "@/components/central/ViewingAsBanner";
 import Sidebar from "@/components/central/Sidebar";
 import MobileHeader from "@/components/central/MobileHeader";
 import ChatAssistant from "@/components/central/ChatAssistant";
@@ -128,14 +132,31 @@ const demoData: DashboardData = {
 };
 
 const AuthenticatedApp = () => {
-  const { userProfile, user } = useAuth();
+  const { userProfile, user, refreshProfile } = useAuth();
+  const { viewAsStudent, clearViewAsStudent } = useViewAsStudent();
   const [currentView, setCurrentView] = useState<ViewState>("dashboard");
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
+  const [showOnboarding, setShowOnboarding] = useState(false);
   const isMobile = useIsMobile();
   const { processFile, isProcessing, processedData, reset } = useUploadSheet();
-  const { dashboardData, isLoading: isLoadingData, saveData, mergeData, fetchData } = useDashboardData(user?.id);
+  
+  // Se visualizando aluno, usar ID do aluno; caso contrário, usar ID do usuário atual
+  const effectiveUserId = viewAsStudent?.id || user?.id;
+  const { dashboardData, isLoading: isLoadingData, saveData, mergeData, fetchData } = useDashboardData(effectiveUserId);
+
+  // Mostrar onboarding se não completou
+  useEffect(() => {
+    if (userProfile && !userProfile.onboarding_completed && userProfile.role === 'business_owner') {
+      setShowOnboarding(true);
+    }
+  }, [userProfile]);
+
+  const handleOnboardingComplete = async () => {
+    setShowOnboarding(false);
+    await refreshProfile();
+  };
 
   useEffect(() => {
     document.documentElement.classList.toggle("dark", isDarkMode);
@@ -289,12 +310,7 @@ const AuthenticatedApp = () => {
       case "input-center":
         return <SalesEntryView team={displayData.team} />;
       case "agency-global":
-        return (
-          <div className="p-8">
-            <h2 className="text-2xl font-bold text-foreground mb-4">Visão Global Agência</h2>
-            <p className="text-muted-foreground">Em desenvolvimento...</p>
-          </div>
-        );
+        return <AgencyGlobalView onNavigate={(view) => setCurrentView(view as ViewState)} />;
       default:
         return <DashboardView data={displayData} />;
     }
@@ -307,43 +323,53 @@ const AuthenticatedApp = () => {
     }
   }, [currentView, isMobile]);
 
+  // Se onboarding não foi completado, mostrar wizard
+  if (showOnboarding && userProfile?.role === 'business_owner') {
+    return <OnboardingWizard onComplete={handleOnboardingComplete} />;
+  }
+
   return (
-    <div className="min-h-screen bg-background flex">
-      {/* Mobile Header */}
-      <MobileHeader 
-        onOpenSidebar={() => setSidebarOpen(true)}
-        dashboardData={displayData}
-        onNavigate={setCurrentView}
-      />
+    <div className="min-h-screen bg-background flex flex-col">
+      {/* Banner de visualização como aluno */}
+      <ViewingAsBanner />
       
-      <Sidebar
-        currentView={currentView}
-        onChangeView={setCurrentView}
-        onOpenUpload={() => setShowUploadModal(true)}
-        userRole={userProfile?.role || "business_owner"}
-        isDarkMode={isDarkMode}
-        onToggleTheme={handleToggleTheme}
-        isOpen={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
-        dashboardData={displayData}
-      />
-      
-      <main className="flex-1 md:ml-64 pt-14 md:pt-0 p-4 md:p-6 overflow-auto">
-        {renderCurrentView()}
-      </main>
-      
-      <ChatAssistant data={displayData} />
-      
-      <UploadModal
-        isOpen={showUploadModal}
-        onClose={() => {
-          setShowUploadModal(false);
-          reset();
-        }}
-        onUploadSuccess={handleUploadSuccess}
-        onFileProcess={handleFileProcess}
-        isProcessing={isProcessing}
-      />
+      <div className="flex flex-1">
+        {/* Mobile Header */}
+        <MobileHeader 
+          onOpenSidebar={() => setSidebarOpen(true)}
+          dashboardData={displayData}
+          onNavigate={setCurrentView}
+        />
+        
+        <Sidebar
+          currentView={currentView}
+          onChangeView={setCurrentView}
+          onOpenUpload={() => setShowUploadModal(true)}
+          userRole={userProfile?.role || "business_owner"}
+          isDarkMode={isDarkMode}
+          onToggleTheme={handleToggleTheme}
+          isOpen={sidebarOpen}
+          onClose={() => setSidebarOpen(false)}
+          dashboardData={displayData}
+        />
+        
+        <main className="flex-1 md:ml-64 pt-14 md:pt-0 p-4 md:p-6 overflow-auto">
+          {renderCurrentView()}
+        </main>
+        
+        <ChatAssistant data={displayData} />
+        
+        <UploadModal
+          isOpen={showUploadModal}
+          onClose={() => {
+            setShowUploadModal(false);
+            reset();
+          }}
+          onUploadSuccess={handleUploadSuccess}
+          onFileProcess={handleFileProcess}
+          isProcessing={isProcessing}
+        />
+      </div>
     </div>
   );
 };
@@ -362,9 +388,11 @@ const AppContent = () => {
   }
 
   return user ? (
-    <ClientProvider>
-      <AuthenticatedApp />
-    </ClientProvider>
+    <ViewAsStudentProvider>
+      <ClientProvider>
+        <AuthenticatedApp />
+      </ClientProvider>
+    </ViewAsStudentProvider>
   ) : (
     <LoginView />
   );
