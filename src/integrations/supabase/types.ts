@@ -362,6 +362,51 @@ export type Database = {
           },
         ]
       }
+      mentoring_sessions: {
+        Row: {
+          consultant_id: string
+          created_at: string | null
+          description: string | null
+          duration_minutes: number | null
+          id: string
+          meeting_link: string | null
+          notes: string | null
+          scheduled_at: string
+          status: string | null
+          student_id: string
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          consultant_id: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_link?: string | null
+          notes?: string | null
+          scheduled_at: string
+          status?: string | null
+          student_id: string
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          consultant_id?: string
+          created_at?: string | null
+          description?: string | null
+          duration_minutes?: number | null
+          id?: string
+          meeting_link?: string | null
+          notes?: string | null
+          scheduled_at?: string
+          status?: string | null
+          student_id?: string
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
       notifications: {
         Row: {
           action_view: string | null
