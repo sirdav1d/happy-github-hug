@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Settings, Save, User, Building, Palette, Bell, Shield, LogOut } from "lucide-react";
+import { Settings, Save, User, Building, Palette, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -10,35 +10,59 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
+import { supabase } from "@/integrations/supabase/client";
 import { DashboardData, AppSettings } from "@/types";
 
 interface SettingsViewProps {
   data: DashboardData;
-  onSaveSettings?: (settings: AppSettings) => void;
+  onSaveSettings?: (settings: { appSettings: AppSettings; companyName: string; segment: string }) => Promise<boolean>;
 }
 
 const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
-  const { user, userProfile, signOut } = useAuth();
+  const { user, userProfile, signOut, refreshProfile } = useAuth();
   const { toast } = useToast();
   
   const [settings, setSettings] = useState<AppSettings>(
     data.appSettings || { aggressiveMode: false, considerVacation: false }
   );
-  const [companyName, setCompanyName] = useState(data.companyName);
-  const [segment, setSegment] = useState(data.businessSegment);
+  const [companyName, setCompanyName] = useState(data.companyName || "");
+  const [segment, setSegment] = useState(data.businessSegment || "");
+  const [customSegment, setCustomSegment] = useState("");
   const [isSaving, setIsSaving] = useState(false);
 
   const handleSave = async () => {
     setIsSaving(true);
     try {
-      if (onSaveSettings) {
-        await onSaveSettings(settings);
+      const finalSegment = segment === "Outro" ? customSegment : segment;
+      
+      // Salvar no profiles também
+      if (user) {
+        await supabase
+          .from("profiles")
+          .update({ 
+            company_name: companyName,
+            segment: finalSegment
+          })
+          .eq("id", user.id);
+        
+        await refreshProfile();
       }
+
+      // Salvar no dashboard_data
+      if (onSaveSettings) {
+        await onSaveSettings({
+          appSettings: settings,
+          companyName,
+          segment: finalSegment,
+        });
+      }
+      
       toast({
         title: "Configurações salvas",
         description: "Suas preferências foram atualizadas com sucesso.",
       });
     } catch (error) {
+      console.error("Error saving settings:", error);
       toast({
         title: "Erro ao salvar",
         description: "Não foi possível salvar as configurações.",
@@ -49,16 +73,88 @@ const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
     }
   };
 
+  // Segmentos organizados por categoria
   const segments = [
-    "Varejo",
-    "Atacado",
+    // Automotivo
+    "Concessionária",
+    "Oficina Mecânica",
+    "Autopeças",
+    "Estética Automotiva",
+    "Locadora de Veículos",
+    // Beleza & Estética
+    "Salão de Beleza",
+    "Barbearia",
+    "Clínica de Estética",
+    "Spa",
+    "Studio de Unhas",
+    // Alimentação
+    "Restaurante",
+    "Lanchonete",
+    "Padaria",
+    "Confeitaria",
+    "Food Truck",
+    "Distribuidora de Alimentos",
+    // Saúde
+    "Clínica Médica",
+    "Clínica Odontológica",
+    "Ótica",
+    "Farmácia",
+    "Laboratório",
+    "Clínica Veterinária",
+    // Moda & Varejo
+    "Loja de Roupas",
+    "Loja de Calçados",
+    "Loja de Acessórios",
+    "Joalheria",
+    "Loja de Departamentos",
+    // Serviços
+    "Consultoria",
+    "Agência de Marketing",
+    "Contabilidade",
+    "Advocacia",
+    "Corretora de Seguros",
+    // Construção
+    "Loja de Materiais de Construção",
+    "Engenharia",
+    "Arquitetura",
+    "Reformas e Acabamentos",
+    // Educação
+    "Escola",
+    "Cursos Livres",
+    "Escola de Idiomas",
+    "Ensino Superior",
+    // Tecnologia
+    "Software/SaaS",
     "E-commerce",
-    "Serviços",
-    "Indústria",
-    "Tecnologia",
-    "Saúde",
-    "Educação",
-    "Alimentação",
+    "Agência Digital",
+    "Startup",
+    // Fitness & Bem-estar
+    "Academia",
+    "Studio de Pilates",
+    "CrossFit",
+    "Personal Trainer",
+    // Imobiliário
+    "Imobiliária",
+    "Construtora",
+    "Administração de Imóveis",
+    // Pet
+    "Pet Shop",
+    "Hotel para Pets",
+    // Turismo
+    "Agência de Viagens",
+    "Hotel/Pousada",
+    "Turismo Receptivo",
+    // Agronegócio
+    "Insumos Agrícolas",
+    "Pecuária",
+    "Máquinas Agrícolas",
+    // Indústria
+    "Manufatura",
+    "Metalurgia",
+    "Têxtil",
+    // Outros
+    "Varejo Geral",
+    "Atacado",
     "Outro",
   ];
 
@@ -155,7 +251,7 @@ const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
                   <SelectTrigger>
                     <SelectValue placeholder="Selecione o segmento" />
                   </SelectTrigger>
-                  <SelectContent>
+                  <SelectContent className="max-h-60">
                     {segments.map((seg) => (
                       <SelectItem key={seg} value={seg}>
                         {seg}
@@ -164,6 +260,20 @@ const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
                   </SelectContent>
                 </Select>
               </div>
+              {segment === "Outro" && (
+                <div className="space-y-2 md:col-span-2">
+                  <Label htmlFor="customSegment">Descreva seu ramo de atividade</Label>
+                  <Input
+                    id="customSegment"
+                    value={customSegment}
+                    onChange={(e) => setCustomSegment(e.target.value)}
+                    placeholder="Ex: Clínica de fisioterapia esportiva..."
+                  />
+                  <p className="text-xs text-muted-foreground">
+                    Isso ajuda a IRIS a personalizar ainda mais as recomendações para seu negócio
+                  </p>
+                </div>
+              )}
             </div>
           </CardContent>
         </Card>

@@ -106,11 +106,12 @@ export const useDashboardData = (userId: string | undefined): UseDashboardDataRe
       if (data.historicalData !== undefined) updateData.historical_data = data.historicalData as unknown as Json;
       if (data.currentYearData !== undefined) updateData.current_year_data = data.currentYearData as unknown as Json;
       if (data.team !== undefined) updateData.team = data.team as unknown as Json;
-      if (data.companyName) updateData.company_name = data.companyName;
-      if (data.businessSegment) updateData.business_segment = data.businessSegment;
+      if (data.companyName !== undefined) updateData.company_name = data.companyName;
+      if (data.businessSegment !== undefined) updateData.business_segment = data.businessSegment;
       if (data.selectedMonth) updateData.selected_month = data.selectedMonth;
       if (data.yearsAvailable) updateData.years_available = data.yearsAvailable;
       if (data.mentorshipStartDate !== undefined) updateData.mentorship_start_date = data.mentorshipStartDate || null;
+      if (data.appSettings !== undefined) updateData.app_settings = data.appSettings as unknown as Json;
 
       // Verificar se já existe registro
       const { data: existingData, error: checkError } = await supabase

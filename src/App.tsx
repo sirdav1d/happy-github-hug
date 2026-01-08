@@ -268,7 +268,18 @@ const AuthenticatedApp = () => {
       case "insights":
         return <InsightsView data={displayData} />;
       case "settings":
-        return <SettingsView data={displayData} />;
+        return (
+          <SettingsView 
+            data={displayData} 
+            onSaveSettings={async (settingsData) => {
+              return saveData({
+                appSettings: settingsData.appSettings,
+                companyName: settingsData.companyName,
+                businessSegment: settingsData.segment,
+              });
+            }}
+          />
+        );
       case "ai-summary":
         return <ExecutiveSummaryView data={displayData} />;
       case "glossary":
