@@ -218,28 +218,43 @@ export type Database = {
       }
       invites: {
         Row: {
+          consultant_name: string | null
           created_at: string
           created_by: string
           email: string
+          email_sent: boolean | null
+          email_sent_at: string | null
+          expires_at: string | null
           id: string
+          invite_token: string | null
           registered_uid: string | null
           role: Database["public"]["Enums"]["user_role"]
           status: string
         }
         Insert: {
+          consultant_name?: string | null
           created_at?: string
           created_by: string
           email: string
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          expires_at?: string | null
           id?: string
+          invite_token?: string | null
           registered_uid?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: string
         }
         Update: {
+          consultant_name?: string | null
           created_at?: string
           created_by?: string
           email?: string
+          email_sent?: boolean | null
+          email_sent_at?: string | null
+          expires_at?: string | null
           id?: string
+          invite_token?: string | null
           registered_uid?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           status?: string
@@ -346,6 +361,48 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      notifications: {
+        Row: {
+          action_view: string | null
+          created_at: string | null
+          data: Json | null
+          id: string
+          message: string | null
+          priority: string
+          read: boolean | null
+          related_student_id: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          action_view?: string | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          message?: string | null
+          priority?: string
+          read?: boolean | null
+          related_student_id?: string | null
+          title: string
+          type?: string
+          user_id: string
+        }
+        Update: {
+          action_view?: string | null
+          created_at?: string | null
+          data?: Json | null
+          id?: string
+          message?: string | null
+          priority?: string
+          read?: boolean | null
+          related_student_id?: string | null
+          title?: string
+          type?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       pgv_entries: {
         Row: {
@@ -471,33 +528,53 @@ export type Database = {
       }
       profiles: {
         Row: {
+          avatar_url: string | null
           company_name: string | null
           created_at: string
           email: string
           id: string
+          onboarding_completed: boolean | null
+          plan_expires_at: string | null
+          plan_id: string | null
           role: Database["public"]["Enums"]["user_role"]
           segment: string | null
           updated_at: string
         }
         Insert: {
+          avatar_url?: string | null
           company_name?: string | null
           created_at?: string
           email: string
           id: string
+          onboarding_completed?: boolean | null
+          plan_expires_at?: string | null
+          plan_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           segment?: string | null
           updated_at?: string
         }
         Update: {
+          avatar_url?: string | null
           company_name?: string | null
           created_at?: string
           email?: string
           id?: string
+          onboarding_completed?: boolean | null
+          plan_expires_at?: string | null
+          plan_id?: string | null
           role?: Database["public"]["Enums"]["user_role"]
           segment?: string | null
           updated_at?: string
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_plan_id_fkey"
+            columns: ["plan_id"]
+            isOneToOne: false
+            referencedRelation: "subscription_plans"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       rmr_meetings: {
         Row: {
@@ -623,6 +700,42 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      subscription_plans: {
+        Row: {
+          created_at: string | null
+          features: Json | null
+          id: string
+          is_active: boolean | null
+          max_students: number
+          name: string
+          price_monthly: number | null
+          slug: string
+          updated_at: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_students: number
+          name: string
+          price_monthly?: number | null
+          slug: string
+          updated_at?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          features?: Json | null
+          id?: string
+          is_active?: boolean | null
+          max_students?: number
+          name?: string
+          price_monthly?: number | null
+          slug?: string
+          updated_at?: string | null
+        }
+        Relationships: []
       }
     }
     Views: {
