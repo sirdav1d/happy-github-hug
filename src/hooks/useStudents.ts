@@ -1,6 +1,7 @@
 import { useState, useCallback, useEffect } from 'react';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import useSubscriptionPlan from '@/hooks/useSubscriptionPlan';
 
 export interface Student {
   id: string;
@@ -9,6 +10,7 @@ export interface Student {
   companyName?: string;
   segment?: string;
   registeredAt?: string;
+  registeredUid?: string;
   createdAt: string;
   // Dados consolidados do aluno
   dashboardSummary?: {
@@ -23,9 +25,11 @@ interface UseStudentsReturn {
   students: Student[];
   isLoading: boolean;
   error: string | null;
-  inviteStudent: (email: string) => Promise<boolean>;
+  inviteStudent: (email: string, consultantName?: string) => Promise<boolean>;
   removeInvite: (inviteId: string) => Promise<boolean>;
   fetchStudents: () => Promise<void>;
+  canInviteMore: boolean;
+  planLimit: number;
 }
 
 export default function useStudents(userId: string | undefined): UseStudentsReturn {
@@ -33,6 +37,10 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { toast } = useToast();
+  const { currentPlan, studentCount, canAddStudent } = useSubscriptionPlan();
+  
+  const planLimit = currentPlan?.maxStudents || 5;
+  const canInviteMore = canAddStudent;
 
   const fetchStudents = useCallback(async () => {
     if (!userId) return;
@@ -91,6 +99,7 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
             status: invite.status as 'pending' | 'registered',
             companyName: profileData?.company_name || undefined,
             segment: profileData?.segment || undefined,
+            registeredUid: invite.registered_uid || undefined,
             createdAt: invite.created_at,
             dashboardSummary,
           };
@@ -106,8 +115,18 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
     }
   }, [userId]);
 
-  const inviteStudent = useCallback(async (email: string): Promise<boolean> => {
+  const inviteStudent = useCallback(async (email: string, consultantName?: string): Promise<boolean> => {
     if (!userId) return false;
+
+    // Verificar limite do plano
+    if (!canInviteMore) {
+      toast({
+        title: 'Limite de alunos atingido',
+        description: `Seu plano permite até ${planLimit} alunos. Faça upgrade para convidar mais.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
 
     setIsLoading(true);
     setError(null);
@@ -130,16 +149,50 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
         return false;
       }
 
-      const { error: insertError } = await supabase
+      // Gerar token de convite
+      const inviteToken = crypto.randomUUID();
+      const expiresAt = new Date();
+      expiresAt.setDate(expiresAt.getDate() + 7); // Expira em 7 dias
+
+      const { data: invite, error: insertError } = await supabase
         .from('invites')
         .insert({
           email: email.toLowerCase(),
           created_by: userId,
           role: 'business_owner',
           status: 'pending',
-        });
+          invite_token: inviteToken,
+          expires_at: expiresAt.toISOString(),
+          consultant_name: consultantName || 'Seu Consultor',
+        })
+        .select()
+        .single();
 
       if (insertError) throw insertError;
+
+      // Enviar email de convite via edge function
+      try {
+        const { error: emailError } = await supabase.functions.invoke('send-invite-email', {
+          body: {
+            email: email.toLowerCase(),
+            consultantName: consultantName || 'Seu Consultor',
+            inviteToken,
+          },
+        });
+
+        if (emailError) {
+          console.error('Error sending invite email:', emailError);
+          // Atualizar convite mesmo se email falhar
+        } else {
+          // Marcar email como enviado
+          await supabase
+            .from('invites')
+            .update({ email_sent: true, email_sent_at: new Date().toISOString() })
+            .eq('id', invite.id);
+        }
+      } catch (emailErr) {
+        console.error('Error invoking email function:', emailErr);
+      }
 
       toast({
         title: 'Convite enviado!',
@@ -160,7 +213,7 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
     } finally {
       setIsLoading(false);
     }
-  }, [userId, toast, fetchStudents]);
+  }, [userId, toast, fetchStudents, canInviteMore, planLimit]);
 
   const removeInvite = useCallback(async (inviteId: string): Promise<boolean> => {
     if (!userId) return false;
@@ -212,5 +265,7 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
     inviteStudent,
     removeInvite,
     fetchStudents,
+    canInviteMore,
+    planLimit,
   };
 }
