@@ -20,3 +20,33 @@ verify_jwt = false
 
 [functions.generate-report]
 verify_jwt = false
+
+[functions.analyze-fivi-audio]
+verify_jwt = false
+
+[functions.generate-gamma-slides]
+verify_jwt = false
+
+[functions.validate-gamma-key]
+verify_jwt = false
+
+[functions.generate-youtube-search]
+verify_jwt = false
+
+[functions.suggest-rmr-videos]
+verify_jwt = false
+
+[functions.generate-rmr-script]
+verify_jwt = false
+
+[functions.generate-rmr-insights]
+verify_jwt = false
+
+[functions.manage-test-user]
+verify_jwt = false
+
+[functions.notebooklm-bridge]
+verify_jwt = false
+
+[functions.analyze-behavioral-audio]
+verify_jwt = false

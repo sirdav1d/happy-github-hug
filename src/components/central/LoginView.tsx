@@ -1,17 +1,25 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '@/contexts/AuthContext';
-import { ArrowRight, Lock, Mail, AlertTriangle, ScanFace, ChevronRight, Sparkles } from 'lucide-react';
+import { supabase } from '@/integrations/supabase/client';
+import { ArrowRight, Lock, Mail, AlertTriangle, ScanFace, ChevronRight, Sparkles, CheckCircle } from 'lucide-react';
 import ParticleNetwork from './login/ParticleNetwork';
 import FloatingOrbs from './login/FloatingOrbs';
 import FloatingMetrics from './login/FloatingMetrics';
 
 const LoginView = () => {
+  // Detect Firefox to use lighter effects
+  const isFirefox = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+    return navigator.userAgent.toLowerCase().includes('firefox');
+  }, []);
   const { signIn, signUp } = useAuth();
   const [isRegistering, setIsRegistering] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState<string | null>(null);
+  const [success, setSuccess] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [loadingStage, setLoadingStage] = useState<string>('');
   const [loadingProgress, setLoadingProgress] = useState(0);
@@ -19,6 +27,7 @@ const LoginView = () => {
   const simulateLoadingSequence = async (callback: () => Promise<void>) => {
     setLoading(true);
     setError(null);
+    setSuccess(null);
     setLoadingProgress(0);
     
     const stages = [
@@ -55,6 +64,32 @@ const LoginView = () => {
         await signIn(email, password);
       }
     });
+  };
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    setError(null);
+    setSuccess(null);
+    setLoadingStage("ENVIANDO LINK...");
+    setLoadingProgress(50);
+
+    try {
+      const redirectUrl = `${window.location.origin}/`;
+      const { error } = await supabase.auth.resetPasswordForEmail(email, {
+        redirectTo: redirectUrl,
+      });
+
+      if (error) throw error;
+
+      setLoadingProgress(100);
+      setSuccess("Link de recuperação enviado! Verifique seu e-mail.");
+      setLoading(false);
+    } catch (err: any) {
+      setError("Erro ao enviar link. Verifique o e-mail.");
+      setLoading(false);
+      setLoadingProgress(0);
+    }
   };
 
   const containerVariants = {
@@ -173,7 +208,7 @@ const LoginView = () => {
           {/* Card glow effect */}
           <div className="absolute -inset-1 bg-gradient-to-r from-indigo-500/20 via-purple-500/20 to-cyan-500/20 rounded-3xl blur-xl opacity-50" />
           
-          <div className="relative bg-slate-900/60 backdrop-blur-xl rounded-2xl border border-white/10 p-8 lg:p-10 shadow-2xl">
+          <div className={`relative rounded-2xl border border-white/10 p-8 lg:p-10 shadow-2xl ${isFirefox ? 'bg-slate-900' : 'bg-slate-900/60 backdrop-blur-xl'}`}>
             {/* Mobile logo */}
             <motion.div 
               className="lg:hidden text-center mb-8"
@@ -206,22 +241,26 @@ const LoginView = () => {
               <h1 className="text-3xl lg:text-4xl font-bold text-white tracking-tight leading-tight">
                 <AnimatePresence mode="wait">
                   <motion.span
-                    key={isRegistering ? 'register' : 'login'}
+                    key={isForgotPassword ? 'forgot' : isRegistering ? 'register' : 'login'}
                     initial={{ opacity: 0, y: 10 }}
                     animate={{ opacity: 1, y: 0 }}
                     exit={{ opacity: 0, y: -10 }}
                     transition={{ duration: 0.2 }}
                   >
-                    {isRegistering ? 'Criar Conta' : 'Bem-vindo'}
+                    {isForgotPassword ? 'Recuperar Senha' : isRegistering ? 'Criar Conta' : 'Bem-vindo'}
                   </motion.span>
                 </AnimatePresence>
               </h1>
               <p className="text-slate-400 mt-2 text-sm">
-                {isRegistering ? 'Preencha os dados para começar' : 'Entre para acessar sua central'}
+                {isForgotPassword 
+                  ? 'Digite seu e-mail para receber o link' 
+                  : isRegistering 
+                    ? 'Preencha os dados para começar' 
+                    : 'Entre para acessar sua central'}
               </p>
             </motion.div>
 
-            <form onSubmit={handleSubmit} className="space-y-5">
+            <form onSubmit={isForgotPassword ? handleForgotPassword : handleSubmit} className="space-y-5">
               <AnimatePresence mode="wait">
                 {error && (
                   <motion.div
@@ -232,6 +271,17 @@ const LoginView = () => {
                   >
                     <AlertTriangle className="text-red-400 shrink-0 mt-0.5" size={16} />
                     <p className="text-xs text-red-300 font-mono">{error}</p>
+                  </motion.div>
+                )}
+                {success && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: 'auto' }}
+                    exit={{ opacity: 0, height: 0 }}
+                    className="p-4 bg-emerald-950/30 border border-emerald-500/30 rounded-xl flex items-start gap-3 overflow-hidden"
+                  >
+                    <CheckCircle className="text-emerald-400 shrink-0 mt-0.5" size={16} />
+                    <p className="text-xs text-emerald-300 font-mono">{success}</p>
                   </motion.div>
                 )}
               </AnimatePresence>
@@ -258,27 +308,42 @@ const LoginView = () => {
                   </div>
                 </div>
 
-                {/* Password field */}
-                <div className="group">
-                  <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">
-                    Senha
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
-                      <Lock className="h-5 w-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors duration-300" />
+                {/* Password field - only show when not in forgot password mode */}
+                {!isForgotPassword && (
+                  <div className="group">
+                    <label className="block text-xs font-bold text-slate-400 uppercase tracking-wider mb-2 ml-1">
+                      Senha
+                    </label>
+                    <div className="relative">
+                      <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none">
+                        <Lock className="h-5 w-5 text-slate-500 group-focus-within:text-cyan-400 transition-colors duration-300" />
+                      </div>
+                      <input
+                        type="password"
+                        required
+                        disabled={loading}
+                        value={password}
+                        onChange={(e) => setPassword(e.target.value)}
+                        className="block w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:bg-slate-800/80 transition-all duration-300 font-medium text-sm"
+                        placeholder="••••••••••••"
+                        minLength={6}
+                      />
                     </div>
-                    <input
-                      type="password"
-                      required
-                      disabled={loading}
-                      value={password}
-                      onChange={(e) => setPassword(e.target.value)}
-                      className="block w-full pl-12 pr-4 py-4 bg-slate-800/50 border border-slate-700/50 rounded-xl text-white placeholder-slate-500 focus:outline-none focus:border-cyan-500/50 focus:ring-2 focus:ring-cyan-500/20 focus:bg-slate-800/80 transition-all duration-300 font-medium text-sm"
-                      placeholder="••••••••••••"
-                      minLength={6}
-                    />
                   </div>
-                </div>
+                )}
+
+                {/* Forgot password link - only show on login screen */}
+                {!isRegistering && !isForgotPassword && (
+                  <div className="text-right">
+                    <button
+                      type="button"
+                      onClick={() => { setIsForgotPassword(true); setError(null); setSuccess(null); }}
+                      className="text-xs text-cyan-400 hover:text-cyan-300 hover:underline underline-offset-2 transition-colors"
+                    >
+                      Esqueci minha senha
+                    </button>
+                  </div>
+                )}
               </motion.div>
 
               {/* Submit button */}
@@ -318,7 +383,7 @@ const LoginView = () => {
                       </>
                     ) : (
                       <>
-                        {isRegistering ? 'CRIAR CONTA' : 'INICIAR SESSÃO'}
+                        {isForgotPassword ? 'ENVIAR LINK' : isRegistering ? 'CRIAR CONTA' : 'INICIAR SESSÃO'}
                         <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
                       </>
                     )}
@@ -327,13 +392,26 @@ const LoginView = () => {
               </motion.div>
             </form>
 
-            {/* Toggle login/register */}
+            {/* Toggle login/register/forgot */}
             <motion.div className="text-center pt-6" variants={itemVariants}>
               <button
-                onClick={() => { setIsRegistering(!isRegistering); setError(null); }}
+                onClick={() => { 
+                  if (isForgotPassword) {
+                    setIsForgotPassword(false);
+                  } else {
+                    setIsRegistering(!isRegistering);
+                  }
+                  setError(null); 
+                  setSuccess(null);
+                }}
                 className="text-slate-400 hover:text-white transition-colors text-sm font-medium flex items-center justify-center gap-2 mx-auto group"
               >
-                {isRegistering ? (
+                {isForgotPassword ? (
+                  <>
+                    <ChevronRight size={14} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
+                    Voltar para Login
+                  </>
+                ) : isRegistering ? (
                   <>
                     <ChevronRight size={14} className="rotate-180 group-hover:-translate-x-1 transition-transform" />
                     Voltar para Login

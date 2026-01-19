@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { ArrowLeft, ArrowRight, Check, Target, Star, Sparkles, Calendar, FileText, Clock } from "lucide-react";
+import { ArrowLeft, ArrowRight, Check, Target, Star, Sparkles, Calendar, FileText, Clock, Play, Loader2 } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -12,13 +12,31 @@ import { Progress } from "@/components/ui/progress";
 import { cn } from "@/lib/utils";
 import { Salesperson } from "@/types";
 import { useRMR, CreateRMRInput, RMRMeeting } from "@/hooks/useRMR";
+import { useRMRPreparation, RMRInsights } from "@/hooks/useRMRPreparation";
+import { useRMRScript } from "@/hooks/useRMRScript";
+import RMRInsightsPanel from "./RMRInsightsPanel";
+import VideoSuggestionPanel from "./VideoSuggestionPanel";
+import PhaseGatedFeature from "./PhaseGatedFeature";
+import RMRGenerationProgress from "./RMRGenerationProgress";
+import RMRScriptPreview from "./RMRScriptPreview";
 
 interface RMRWizardProps {
   team: Salesperson[];
   previousMonthRevenue: number;
   previousMonthGoal: number;
   lastRMR?: RMRMeeting | null;
+  isPhase2: boolean;
+  retroactiveMode?: boolean;
   onClose: () => void;
+}
+
+interface SelectedVideo {
+  youtube_id: string;
+  youtube_url: string;
+  title: string;
+  thumbnail_url: string;
+  duration_formatted: string;
+  notes?: string;
 }
 
 interface WizardData {
@@ -31,17 +49,21 @@ interface WizardData {
   highlightReason: string;
   // Step 3 - Theme
   motivationalTheme: string;
+  // Step 3b - Video (new)
+  selectedVideo?: SelectedVideo;
   // Step 4 - Goals
   monthlyGoal: number;
   strategies: string[];
   // Step 5 - Notes
   notes: string;
+  // AI Insights
+  aiInsights?: RMRInsights | null;
 }
 
 const STEPS = [
   { id: 1, title: "Resultados do Mês", icon: Target },
   { id: 2, title: "Colaborador Destaque", icon: Star },
-  { id: 3, title: "Tema Motivacional", icon: Sparkles },
+  { id: 3, title: "Tema e Vídeo", icon: Sparkles },
   { id: 4, title: "Metas do Próximo Mês", icon: Calendar },
   { id: 5, title: "Revisão Final", icon: FileText },
 ];
@@ -54,8 +76,43 @@ const SUGGESTED_THEMES = [
   "Resiliência: transformar desafios em oportunidades",
 ];
 
-const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onClose }: RMRWizardProps) => {
+const MONTHS = [
+  { value: 1, label: "Janeiro" },
+  { value: 2, label: "Fevereiro" },
+  { value: 3, label: "Março" },
+  { value: 4, label: "Abril" },
+  { value: 5, label: "Maio" },
+  { value: 6, label: "Junho" },
+  { value: 7, label: "Julho" },
+  { value: 8, label: "Agosto" },
+  { value: 9, label: "Setembro" },
+  { value: 10, label: "Outubro" },
+  { value: 11, label: "Novembro" },
+  { value: 12, label: "Dezembro" },
+];
+
+const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, isPhase2, retroactiveMode = false, onClose }: RMRWizardProps) => {
   const [currentStep, setCurrentStep] = useState(1);
+  const { generateInsights, isGeneratingInsights, preparationStatus } = useRMRPreparation();
+  const { generateScript, isGenerating: isGeneratingScript, downloadPDF, isDownloading } = useRMRScript();
+  const [localInsights, setLocalInsights] = useState<RMRInsights | null>(null);
+  const [showGenerationProgress, setShowGenerationProgress] = useState(false);
+  const [generatedScriptMarkdown, setGeneratedScriptMarkdown] = useState<string | null>(null);
+  const [showScriptPreview, setShowScriptPreview] = useState(false);
+  
+  // Retroactive mode state for month/year selection
+  const currentDate = new Date();
+  const defaultPreviousMonth = currentDate.getMonth() === 0 ? 12 : currentDate.getMonth();
+  const defaultPreviousYear = currentDate.getMonth() === 0 ? currentDate.getFullYear() - 1 : currentDate.getFullYear();
+  const [selectedMonth, setSelectedMonth] = useState(defaultPreviousMonth);
+  const [selectedYear, setSelectedYear] = useState(defaultPreviousYear);
+  
+  // Year options for retroactive mode
+  const yearOptions = [
+    currentDate.getFullYear(),
+    currentDate.getFullYear() - 1,
+    currentDate.getFullYear() - 2,
+  ];
   
   // Sugerir crescimento de 10% sobre a última meta como base
   const suggestedGoal = lastRMR?.monthly_goal 
@@ -69,9 +126,11 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
     highlightedEmployeeName: "",
     highlightReason: "",
     motivationalTheme: lastRMR?.motivational_theme || "",
+    selectedVideo: undefined,
     monthlyGoal: suggestedGoal,
     strategies: lastRMR?.strategies || [],
     notes: "",
+    aiInsights: null,
   });
   const [newStrategy, setNewStrategy] = useState("");
 
@@ -94,6 +153,20 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
 
   const { createRMR, isCreating } = useRMR();
   const activeTeam = team.filter(s => s.active && !s.isPlaceholder);
+
+  // Generate insights when entering step 2
+  useEffect(() => {
+    if (currentStep === 2 && !localInsights && !isGeneratingInsights && activeTeam.length > 0 && isPhase2) {
+      generateInsights(
+        activeTeam.map(p => ({ id: String(p.id), name: p.name, totalRevenue: p.totalRevenue, monthlyGoal: p.monthlyGoal })),
+        previousMonthRevenue,
+        previousMonthGoal,
+        lastRMR ? { theme: lastRMR.motivational_theme, strategies: lastRMR.strategies, highlightedEmployeeName: lastRMR.highlighted_employee_name } : undefined
+      ).then(insights => {
+        if (insights) setLocalInsights(insights);
+      });
+    }
+  }, [currentStep, localInsights, isGeneratingInsights, activeTeam, isPhase2, generateInsights, previousMonthRevenue, previousMonthGoal, lastRMR]);
 
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -128,14 +201,26 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
     });
   };
 
-  const handleSave = () => {
-    const nextMonth = new Date();
-    nextMonth.setMonth(nextMonth.getMonth() + 1);
+  const handleSave = async () => {
+    let rmrMonth: number;
+    let rmrYear: number;
+
+    if (retroactiveMode) {
+      // Use selected month/year for retroactive
+      rmrMonth = selectedMonth;
+      rmrYear = selectedYear;
+    } else {
+      // Use next month for preparation
+      const nextMonth = new Date();
+      nextMonth.setMonth(nextMonth.getMonth() + 1);
+      rmrMonth = nextMonth.getMonth() + 1;
+      rmrYear = nextMonth.getFullYear();
+    }
 
     const input: CreateRMRInput = {
-      date: new Date(nextMonth.getFullYear(), nextMonth.getMonth(), 1).toISOString().split('T')[0],
-      month: nextMonth.getMonth() + 1,
-      year: nextMonth.getFullYear(),
+      date: new Date(rmrYear, rmrMonth - 1, 1).toISOString().split('T')[0],
+      month: rmrMonth,
+      year: rmrYear,
       monthly_goal: wizardData.monthlyGoal,
       previous_month_revenue: wizardData.previousRevenue,
       motivational_theme: wizardData.motivationalTheme,
@@ -145,11 +230,64 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
       highlighted_employee_name: wizardData.highlightedEmployeeName,
       highlight_reason: wizardData.highlightReason,
       status: 'completed',
+      // Video fields
+      selected_video_id: wizardData.selectedVideo?.youtube_id,
+      selected_video_url: wizardData.selectedVideo?.youtube_url,
+      selected_video_title: wizardData.selectedVideo?.title,
     };
 
     createRMR(input, {
-      onSuccess: () => onClose(),
+      onSuccess: async () => {
+        // Auto-generate script after saving RMR (Phase 2 only, not for retroactive)
+        if (isPhase2 && !retroactiveMode) {
+          setShowGenerationProgress(true);
+          
+          const activeTeam = team.filter(s => s.active && !s.isPlaceholder);
+          const scriptData = {
+            highlight: {
+              name: wizardData.highlightedEmployeeName,
+              reason: wizardData.highlightReason
+            },
+            theme: wizardData.motivationalTheme,
+            goal: wizardData.monthlyGoal,
+            strategies: wizardData.strategies,
+            video: wizardData.selectedVideo ? {
+              title: wizardData.selectedVideo.title,
+              url: wizardData.selectedVideo.youtube_url
+            } : undefined,
+            previousMonth: {
+              revenue: wizardData.previousRevenue,
+              goal: wizardData.previousGoal
+            },
+            team: activeTeam.map(p => ({
+              id: String(p.id),
+              name: p.name,
+              revenue: p.totalRevenue,
+              goal: p.monthlyGoal
+            })),
+            month: rmrMonth,
+            year: rmrYear
+          };
+
+          const result = await generateScript(scriptData);
+          setShowGenerationProgress(false);
+          
+          if (result) {
+            setGeneratedScriptMarkdown(result.script_markdown);
+            setShowScriptPreview(true);
+          } else {
+            onClose();
+          }
+        } else {
+          onClose();
+        }
+      },
     });
+  };
+
+  const handleCloseWithPreview = () => {
+    setShowScriptPreview(false);
+    onClose();
   };
 
   const percentAchieved = wizardData.previousGoal > 0 
@@ -172,7 +310,9 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
         {/* Header with Progress */}
         <CardHeader className="border-b border-border pb-4">
           <div className="flex items-center justify-between mb-4">
-            <CardTitle className="text-xl">Preparar RMR</CardTitle>
+            <CardTitle className="text-xl">
+              {retroactiveMode ? "Registrar RMR Passada" : "Preparar RMR"}
+            </CardTitle>
             <Button variant="ghost" size="sm" onClick={onClose}>
               Cancelar
             </Button>
@@ -227,25 +367,103 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                 className="space-y-6"
               >
                 <div className="text-center mb-6">
-                  <h3 className="text-lg font-semibold">Resultados do Mês Anterior</h3>
-                  <p className="text-muted-foreground">Revise o desempenho da equipe no mês que passou</p>
+                  <h3 className="text-lg font-semibold">
+                    {retroactiveMode ? "Dados da RMR Passada" : "Resultados do Mês Anterior"}
+                  </h3>
+                  <p className="text-muted-foreground">
+                    {retroactiveMode 
+                      ? "Selecione o mês e preencha os dados da reunião" 
+                      : "Revise o desempenho da equipe no mês que passou"}
+                  </p>
                 </div>
 
-                <div className="grid grid-cols-2 gap-4">
-                  <div className="p-4 rounded-lg bg-secondary/30">
-                    <p className="text-sm text-muted-foreground">Meta do Mês</p>
-                    <p className="text-2xl font-bold">{formatCurrency(wizardData.previousGoal)}</p>
+                {/* Month/Year Selection for Retroactive Mode */}
+                {retroactiveMode && (
+                  <div className="grid grid-cols-2 gap-4 p-4 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                    <div className="space-y-2">
+                      <Label>Mês da RMR</Label>
+                      <Select
+                        value={String(selectedMonth)}
+                        onValueChange={(value) => setSelectedMonth(Number(value))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {MONTHS.map((m) => (
+                            <SelectItem key={m.value} value={String(m.value)}>
+                              {m.label}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Ano</Label>
+                      <Select
+                        value={String(selectedYear)}
+                        onValueChange={(value) => setSelectedYear(Number(value))}
+                      >
+                        <SelectTrigger>
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent>
+                          {yearOptions.map((y) => (
+                            <SelectItem key={y} value={String(y)}>
+                              {y}
+                            </SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    </div>
                   </div>
-                  <div className="p-4 rounded-lg bg-secondary/30">
-                    <p className="text-sm text-muted-foreground">Faturamento Realizado</p>
-                    <p className={cn(
-                      "text-2xl font-bold",
-                      percentAchieved >= 100 ? "text-emerald-500" : "text-amber-500"
-                    )}>
-                      {formatCurrency(wizardData.previousRevenue)}
-                    </p>
+                )}
+
+                {/* Editable fields for retroactive mode */}
+                {retroactiveMode ? (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label>Faturamento Realizado</Label>
+                      <Input
+                        type="number"
+                        value={wizardData.previousRevenue}
+                        onChange={(e) => setWizardData({ ...wizardData, previousRevenue: Number(e.target.value) })}
+                        placeholder="Ex: 150000"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(wizardData.previousRevenue)}
+                      </p>
+                    </div>
+                    <div className="space-y-2">
+                      <Label>Meta do Mês</Label>
+                      <Input
+                        type="number"
+                        value={wizardData.previousGoal}
+                        onChange={(e) => setWizardData({ ...wizardData, previousGoal: Number(e.target.value) })}
+                        placeholder="Ex: 200000"
+                      />
+                      <p className="text-xs text-muted-foreground">
+                        {formatCurrency(wizardData.previousGoal)}
+                      </p>
+                    </div>
                   </div>
-                </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="p-4 rounded-lg bg-secondary/30">
+                      <p className="text-sm text-muted-foreground">Meta do Mês</p>
+                      <p className="text-2xl font-bold">{formatCurrency(wizardData.previousGoal)}</p>
+                    </div>
+                    <div className="p-4 rounded-lg bg-secondary/30">
+                      <p className="text-sm text-muted-foreground">Faturamento Realizado</p>
+                      <p className={cn(
+                        "text-2xl font-bold",
+                        percentAchieved >= 100 ? "text-emerald-500" : "text-amber-500"
+                      )}>
+                        {formatCurrency(wizardData.previousRevenue)}
+                      </p>
+                    </div>
+                  </div>
+                )}
 
                 <div className="p-4 rounded-lg bg-gradient-to-r from-amber-500/10 to-transparent border border-amber-500/20">
                   <div className="flex items-center justify-between mb-2">
@@ -260,8 +478,8 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                   <Progress value={Math.min(percentAchieved, 100)} className="h-3" />
                 </div>
 
-                {/* Contexto da última RMR */}
-                {lastRMR && (
+                {/* Contexto da última RMR - hide in retroactive mode */}
+                {lastRMR && !retroactiveMode && (
                   <div className="p-4 rounded-lg bg-primary/5 border border-primary/20">
                     <h4 className="font-medium mb-3 flex items-center gap-2">
                       <Clock className="h-4 w-4 text-primary" />
@@ -307,7 +525,7 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
               </motion.div>
             )}
 
-            {/* Step 2 - Highlight Employee */}
+            {/* Step 2 - Highlight Employee with AI Insights */}
             {currentStep === 2 && (
               <motion.div
                 key="step2"
@@ -320,6 +538,39 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                   <h3 className="text-lg font-semibold">Colaborador Destaque</h3>
                   <p className="text-muted-foreground">Reconheça quem se destacou este mês</p>
                 </div>
+
+                {/* AI Insights Panel - Visible for all, interactive for Phase 2 */}
+                <RMRInsightsPanel
+                  highlightCandidates={localInsights?.highlight_candidates || preparationStatus?.ai_generated_highlights || []}
+                  suggestedTheme={localInsights?.suggested_theme || preparationStatus?.ai_suggested_theme || undefined}
+                  themeContext={localInsights?.theme_context}
+                  suggestedStrategies={localInsights?.suggested_strategies || preparationStatus?.ai_suggested_strategies || undefined}
+                  suggestedGoal={localInsights?.suggested_goal}
+                  goalReasoning={localInsights?.goal_reasoning}
+                  isPhase2={isPhase2}
+                  selectedHighlightId={wizardData.highlightedEmployeeId}
+                  isLoading={isGeneratingInsights}
+                  onSelectHighlight={(candidate) => {
+                    setWizardData({
+                      ...wizardData,
+                      highlightedEmployeeId: candidate.employee_id || "",
+                      highlightedEmployeeName: candidate.employee_name,
+                      highlightReason: candidate.reason,
+                    });
+                  }}
+                  onSelectTheme={(theme) => {
+                    setWizardData({
+                      ...wizardData,
+                      motivationalTheme: theme,
+                    });
+                  }}
+                  onSelectStrategies={(strategies) => {
+                    setWizardData({
+                      ...wizardData,
+                      strategies: [...new Set([...wizardData.strategies, ...strategies])],
+                    });
+                  }}
+                />
 
                 <div className="space-y-4">
                   <div className="space-y-2">
@@ -384,7 +635,7 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
               </motion.div>
             )}
 
-            {/* Step 3 - Motivational Theme */}
+            {/* Step 3 - Motivational Theme + Video */}
             {currentStep === 3 && (
               <motion.div
                 key="step3"
@@ -394,8 +645,8 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                 className="space-y-6"
               >
                 <div className="text-center mb-6">
-                  <h3 className="text-lg font-semibold">Tema Motivacional</h3>
-                  <p className="text-muted-foreground">Escolha uma mensagem inspiradora para o mês</p>
+                  <h3 className="text-lg font-semibold">Tema e Vídeo Motivacional</h3>
+                  <p className="text-muted-foreground">Escolha uma mensagem inspiradora e um vídeo para o mês</p>
                 </div>
 
                 <div className="space-y-2">
@@ -427,6 +678,54 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                     className="min-h-[80px]"
                   />
                 </div>
+
+                {/* Video Suggestion Panel */}
+                {wizardData.motivationalTheme && (
+                  <VideoSuggestionPanel
+                    theme={wizardData.motivationalTheme}
+                    isPhase2={isPhase2}
+                    selectedVideoId={wizardData.selectedVideo?.youtube_id}
+                    onSelectVideo={(video, notes) => {
+                      setWizardData({
+                        ...wizardData,
+                        selectedVideo: {
+                          youtube_id: video.youtube_id,
+                          youtube_url: video.youtube_url,
+                          title: video.title,
+                          thumbnail_url: video.thumbnail_url || "",
+                          duration_formatted: video.duration_formatted || "",
+                          notes,
+                        },
+                      });
+                    }}
+                  />
+                )}
+
+                {/* Selected video preview */}
+                {wizardData.selectedVideo && (
+                  <motion.div
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="p-4 rounded-lg bg-gradient-to-r from-violet-500/10 via-violet-500/5 to-transparent border border-violet-500/20"
+                  >
+                    <div className="flex items-center gap-3">
+                      <div className="p-2 rounded-full bg-violet-500/20">
+                        <Play className="h-5 w-5 text-violet-500" />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium truncate">{wizardData.selectedVideo.title}</p>
+                        <p className="text-sm text-muted-foreground">Vídeo selecionado para a RMR</p>
+                      </div>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setWizardData({ ...wizardData, selectedVideo: undefined })}
+                      >
+                        Remover
+                      </Button>
+                    </div>
+                  </motion.div>
+                )}
               </motion.div>
             )}
 
@@ -540,6 +839,43 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
                     </div>
                   )}
 
+                  {/* Selected Video Display */}
+                  {wizardData.selectedVideo && (
+                    <div className="p-4 rounded-lg bg-violet-500/5 border border-violet-500/20">
+                      <h4 className="font-medium mb-3 flex items-center gap-2">
+                        <Play className="h-4 w-4 text-violet-500" />
+                        Vídeo Motivacional
+                      </h4>
+                      <div className="flex items-start gap-4">
+                        {wizardData.selectedVideo.thumbnail_url && (
+                          <div className="relative flex-shrink-0">
+                            <img 
+                              src={wizardData.selectedVideo.thumbnail_url}
+                              alt={wizardData.selectedVideo.title}
+                              className="w-28 h-16 object-cover rounded-lg"
+                            />
+                            <div className="absolute inset-0 flex items-center justify-center">
+                              <div className="p-1.5 rounded-full bg-black/60">
+                                <Play className="h-4 w-4 text-white fill-white" />
+                              </div>
+                            </div>
+                          </div>
+                        )}
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium text-foreground line-clamp-2">
+                            {wizardData.selectedVideo.title}
+                          </p>
+                          {wizardData.selectedVideo.duration_formatted && (
+                            <p className="text-xs text-muted-foreground mt-1 flex items-center gap-1">
+                              <Clock className="h-3 w-3" />
+                              {wizardData.selectedVideo.duration_formatted}
+                            </p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="p-4 rounded-lg bg-emerald-500/10 border border-emerald-500/20">
                     <h4 className="font-medium mb-2 flex items-center gap-2">
                       <Calendar className="h-4 w-4 text-emerald-500" />
@@ -591,14 +927,67 @@ const RMRWizard = ({ team, previousMonthRevenue, previousMonthGoal, lastRMR, onC
             <Button 
               onClick={handleSave} 
               className="bg-emerald-500 hover:bg-emerald-600"
-              disabled={isCreating}
+              disabled={isCreating || isGeneratingScript}
             >
-              {isCreating ? "Salvando..." : "Salvar RMR"}
+              {isCreating || isGeneratingScript 
+                ? "Salvando..." 
+                : retroactiveMode 
+                  ? "Registrar RMR" 
+                  : "Salvar RMR"}
               <Check className="h-4 w-4 ml-2" />
             </Button>
           )}
         </div>
       </Card>
+
+      {/* Generation Progress Modal */}
+      <RMRGenerationProgress isOpen={showGenerationProgress} />
+
+      {/* Script Preview Modal */}
+      {showScriptPreview && generatedScriptMarkdown && (() => {
+        const nextMonth = new Date();
+        nextMonth.setMonth(nextMonth.getMonth() + 1);
+        const rmrMonth = nextMonth.getMonth() + 1;
+        const rmrYear = nextMonth.getFullYear();
+        
+        // Prepare slide data for PowerPoint generation
+        const slideData = {
+          theme: wizardData.motivationalTheme,
+          highlight: {
+            name: wizardData.highlightedEmployeeName,
+            reason: wizardData.highlightReason,
+          },
+          previousMonth: {
+            revenue: wizardData.previousRevenue,
+            goal: wizardData.previousGoal,
+          },
+          goal: wizardData.monthlyGoal,
+          strategies: wizardData.strategies,
+          video: wizardData.selectedVideo ? {
+            title: wizardData.selectedVideo.title,
+            url: wizardData.selectedVideo.youtube_url,
+            youtubeId: wizardData.selectedVideo.youtube_id,
+          } : undefined,
+          team: activeTeam.map(p => ({
+            id: String(p.id),
+            name: p.name,
+            revenue: p.totalRevenue,
+            goal: p.monthlyGoal,
+          })),
+        };
+        
+        return (
+          <RMRScriptPreview
+            scriptMarkdown={generatedScriptMarkdown}
+            month={rmrMonth}
+            year={rmrYear}
+            onClose={handleCloseWithPreview}
+            onDownload={() => downloadPDF(generatedScriptMarkdown, { month: rmrMonth, year: rmrYear })}
+            isDownloading={isDownloading}
+            slideData={slideData}
+          />
+        );
+      })()}
     </motion.div>
   );
 };

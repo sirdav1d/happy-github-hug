@@ -3,9 +3,12 @@ import { ViewState, UserRole, DashboardData } from '@/types';
 import Logo from './Logo';
 import NotificationCenter from './NotificationCenter';
 import { Separator } from '@/components/ui/separator';
+import { useMentorshipPhase } from '@/hooks/useMentorshipPhase';
+import { useAuth } from '@/contexts/AuthContext';
 import {
   LayoutDashboard,
   Users,
+  UserCog,
   FileText,
   Upload,
   BarChart3,
@@ -21,7 +24,10 @@ import {
   Trophy,
   MessageSquare,
   ClipboardList,
-  Filter
+  Filter,
+  Target,
+  Brain,
+  Lock
 } from 'lucide-react';
 
 interface SidebarProps {
@@ -43,6 +49,9 @@ interface NavItem {
   icon: React.ElementType;
   consultantOnly?: boolean;
   iconClass?: string;
+  subtitle?: string;
+  isPremium?: boolean;
+  requiresBehavioralAccess?: boolean;
 }
 
 interface Section {
@@ -64,6 +73,10 @@ const Sidebar: React.FC<SidebarProps> = ({
   onClose,
   dashboardData
 }) => {
+  const { user } = useAuth();
+  const { hasBehavioralAccess } = useMentorshipPhase();
+  const isConsultant = userRole === 'consultant';
+
   const sections: Section[] = [
     {
       label: 'Análise',
@@ -80,6 +93,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'pipeline', label: 'Pipeline', icon: Filter, iconClass: 'text-indigo-500' },
         { id: 'input-center', label: 'Lançamentos', icon: PenTool, iconClass: 'text-emerald-500' },
+        { id: 'salespeople', label: 'Vendedores', icon: UserCog, iconClass: 'text-blue-500' },
       ]
     },
     {
@@ -96,6 +110,14 @@ const Sidebar: React.FC<SidebarProps> = ({
       showSeparator: true,
       items: [
         { id: 'insights', label: 'Insights', icon: Lightbulb },
+        { 
+          id: 'behavioral', 
+          label: 'Análise Comportamental', 
+          icon: Brain, 
+          subtitle: 'by Innermetrix',
+          isPremium: true,
+          requiresBehavioralAccess: true
+        },
         { id: 'ai-summary', label: 'Sumário Executivo', icon: FileText },
         { id: 'glossary', label: 'Glossário', icon: BookOpen },
       ]
@@ -106,6 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       consultantOnly: true,
       items: [
         { id: 'admin-users', label: 'Gestão de Alunos', icon: UserPlus, consultantOnly: true },
+        { id: 'video-library', label: 'Biblioteca de Vídeos', icon: BarChart3, consultantOnly: true, iconClass: 'text-rose-500' },
       ]
     },
     {
@@ -113,6 +136,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       showSeparator: true,
       items: [
         { id: 'settings', label: 'Configurações', icon: Settings },
+        { id: 'goal-center', label: 'Central de Metas', icon: Target, iconClass: 'text-primary' },
       ]
     }
   ];
@@ -180,27 +204,66 @@ const Sidebar: React.FC<SidebarProps> = ({
                 {visibleItems.map((item) => {
                   const Icon = item.icon;
                   const isActive = currentView === item.id;
+                  const isPremiumItem = item.isPremium;
+                  
+                  // Check if this item requires behavioral access
+                  const needsBehavioralAccess = item.requiresBehavioralAccess && !isConsultant;
+                  const hasBehavioralPermission = needsBehavioralAccess ? hasBehavioralAccess(user?.id) : true;
+                  const isLocked = needsBehavioralAccess && !hasBehavioralPermission;
                   
                   return (
                     <button
                       key={item.id}
                       onClick={() => handleNavClick(item.id)}
                       className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-300 group relative overflow-hidden ${
-                        isActive
-                          ? 'bg-primary/10 text-primary shadow-[0_0_15px_hsl(var(--primary)/0.15)]'
-                          : 'text-muted-foreground hover:bg-accent hover:text-foreground'
+                        isLocked
+                          ? 'text-muted-foreground/50 cursor-default'
+                          : isPremiumItem
+                            ? isActive
+                              ? 'bg-gradient-to-r from-fuchsia-500/15 to-violet-500/15 text-fuchsia-400 shadow-[0_0_20px_hsl(292_84%_61%/0.2)]'
+                              : 'text-muted-foreground hover:bg-gradient-to-r hover:from-fuchsia-500/10 hover:to-violet-500/10 hover:text-fuchsia-300'
+                            : isActive
+                              ? 'bg-primary/10 text-primary shadow-[0_0_15px_hsl(var(--primary)/0.15)]'
+                              : 'text-muted-foreground hover:bg-accent hover:text-foreground'
                       }`}
                     >
-                      {isActive && (
-                        <div className="absolute inset-y-0 left-0 w-1 bg-primary rounded-r-full shadow-[0_0_10px_currentColor]"></div>
+                      {isActive && !isLocked && (
+                        <div className={`absolute inset-y-0 left-0 w-1 rounded-r-full shadow-[0_0_10px_currentColor] ${
+                          isPremiumItem ? 'bg-gradient-to-b from-fuchsia-500 to-violet-500' : 'bg-primary'
+                        }`}></div>
                       )}
 
-                      <Icon 
-                        size={18} 
-                        strokeWidth={1.5} 
-                        className={item.iconClass || (isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')}
-                      />
-                      <span>{item.label}</span>
+                      {isLocked ? (
+                        <Lock 
+                          size={18} 
+                          strokeWidth={1.5} 
+                          className="text-muted-foreground/40"
+                        />
+                      ) : (
+                        <Icon 
+                          size={18} 
+                          strokeWidth={1.5} 
+                          className={
+                            isPremiumItem 
+                              ? isActive ? 'text-fuchsia-400' : 'text-fuchsia-400/60 group-hover:text-fuchsia-400'
+                              : item.iconClass || (isActive ? 'text-primary' : 'text-muted-foreground group-hover:text-foreground')
+                          }
+                        />
+                      )}
+                      <div className="flex flex-col items-start">
+                        <span className={isLocked ? 'text-muted-foreground/50' : ''}>{item.label}</span>
+                        {item.subtitle && (
+                          <span className={`text-[9px] font-normal tracking-wide ${
+                            isLocked 
+                              ? 'text-muted-foreground/30'
+                              : isPremiumItem 
+                                ? 'text-fuchsia-400/50' 
+                                : 'text-muted-foreground/50'
+                          }`}>
+                            {isLocked ? 'Acesso bloqueado' : item.subtitle}
+                          </span>
+                        )}
+                      </div>
                     </button>
                   );
                 })}

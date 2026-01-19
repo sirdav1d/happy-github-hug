@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useMemo } from 'react';
 
 interface Particle {
   x: number;
@@ -10,6 +10,12 @@ interface Particle {
 }
 
 const ParticleNetwork = () => {
+  // Detect Firefox to disable heavy canvas animations
+  const isFirefox = useMemo(() => {
+    if (typeof navigator === 'undefined') return false;
+    return navigator.userAgent.toLowerCase().includes('firefox');
+  }, []);
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const particlesRef = useRef<Particle[]>([]);
   const animationRef = useRef<number>();
@@ -154,6 +160,11 @@ const ParticleNetwork = () => {
       window.removeEventListener('mousemove', handleMouseMove);
     };
   }, []);
+
+  // Firefox: disable canvas animation completely to prevent black screen
+  if (isFirefox) {
+    return null;
+  }
 
   return (
     <canvas

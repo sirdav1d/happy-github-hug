@@ -19,8 +19,18 @@ export interface RMRMeeting {
   highlighted_employee_id?: string;
   highlighted_employee_name?: string;
   highlight_reason?: string;
+  selected_video_id?: string;
+  selected_video_url?: string;
+  selected_video_title?: string;
   created_at: string;
   updated_at: string;
+  // Slides tracking
+  slides_generated_at?: string;
+  slides_version?: number;
+  // Gamma integration
+  gamma_generation_id?: string;
+  gamma_url?: string;
+  gamma_pptx_url?: string;
 }
 
 export interface CreateRMRInput {
@@ -36,6 +46,9 @@ export interface CreateRMRInput {
   highlighted_employee_name?: string;
   highlight_reason?: string;
   status?: 'scheduled' | 'completed' | 'pending';
+  selected_video_id?: string;
+  selected_video_url?: string;
+  selected_video_title?: string;
 }
 
 export const useRMR = () => {
@@ -162,6 +175,7 @@ export const useRMR = () => {
     deleteRMR: deleteMutation.mutate,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
+    isDeleting: deleteMutation.isPending,
     getNextRMRDate,
     getRMRByMonth,
     getLatestCompletedRMR,

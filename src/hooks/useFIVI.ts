@@ -1,7 +1,37 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/contexts/AuthContext";
+import { useViewAsStudent } from "@/contexts/ViewAsStudentContext";
 import { toast } from "sonner";
+export interface SentimentIndicator {
+  type: string;
+  evidence: string;
+  weight: number;
+}
+
+export interface SentimentAnalysis {
+  overall: 'confiante' | 'neutro' | 'inseguro' | 'frustrado' | 'entusiasmado';
+  score: number;
+  indicators: SentimentIndicator[];
+  evolutionVsPrevious?: 'melhora' | 'estável' | 'declínio';
+}
+
+export interface KeyPoints {
+  conquistas: string[];
+  desafios: string[];
+  oportunidades: string[];
+  acoes_sugeridas: string[];
+}
+
+export interface AIAnalysis {
+  transcription: string;
+  summary: string;
+  sentiment: SentimentAnalysis;
+  commitments: string[];
+  concerns: string[];
+  confidenceScore: number;
+  keyPoints: KeyPoints;
+}
 
 export interface FIVISession {
   id: string;
@@ -20,9 +50,20 @@ export interface FIVISession {
   previous_commitment?: number;
   previous_realized?: number;
   notes?: string;
+  recording_url?: string;
+  meeting_notes?: string;
+  audio_file_path?: string;
   status: 'scheduled' | 'completed' | 'cancelled';
   created_at: string;
   updated_at: string;
+  ai_transcription?: string | null;
+  ai_summary?: string | null;
+  ai_sentiment_analysis?: any;
+  ai_commitments?: string[] | null;
+  ai_concerns?: string[] | null;
+  ai_confidence_score?: number | null;
+  ai_key_points?: any;
+  ai_processed_at?: string | null;
 }
 
 export interface CreateFIVIInput {
@@ -40,43 +81,56 @@ export interface CreateFIVIInput {
   previous_commitment?: number;
   previous_realized?: number;
   notes?: string;
+  recording_url?: string;
+  meeting_notes?: string;
+  audio_file_path?: string;
   status?: 'scheduled' | 'completed' | 'cancelled';
+  ai_transcription?: string;
+  ai_summary?: string;
+  ai_sentiment_analysis?: any;
+  ai_commitments?: string[];
+  ai_concerns?: string[];
+  ai_confidence_score?: number;
+  ai_key_points?: any;
+  ai_processed_at?: string;
 }
 
 export const useFIVI = () => {
   const { user } = useAuth();
+  const { viewAsStudent, isViewingAsStudent } = useViewAsStudent();
   const queryClient = useQueryClient();
+  
+  // Use the student's ID when viewing as student, otherwise use the logged-in user's ID
+  const effectiveUserId = isViewingAsStudent ? viewAsStudent?.id : user?.id;
 
-  // Fetch all FIVI sessions
   const { data: sessions = [], isLoading, error } = useQuery({
-    queryKey: ['fivi-sessions', user?.id],
+    queryKey: ['fivi-sessions', effectiveUserId],
     queryFn: async () => {
-      if (!user?.id) return [];
+      if (!effectiveUserId) return [];
       
       const { data, error } = await supabase
         .from('fivi_sessions')
         .select('*')
-        .eq('user_id', user.id)
+        .eq('user_id', effectiveUserId)
         .order('date', { ascending: false });
 
       if (error) throw error;
-      return data as FIVISession[];
+      return data as unknown as FIVISession[];
     },
-    enabled: !!user?.id,
+    enabled: !!effectiveUserId,
   });
 
-  // Create FIVI session
   const createMutation = useMutation({
     mutationFn: async (input: CreateFIVIInput) => {
-      if (!user?.id) throw new Error('User not authenticated');
+      if (!effectiveUserId) throw new Error('User not authenticated');
 
       const { data, error } = await supabase
         .from('fivi_sessions')
         .insert({
           ...input,
-          user_id: user.id,
+          user_id: effectiveUserId,
           status: input.status || 'completed',
-        })
+        } as any)
         .select()
         .single();
 
@@ -92,12 +146,11 @@ export const useFIVI = () => {
     },
   });
 
-  // Update FIVI session
   const updateMutation = useMutation({
     mutationFn: async ({ id, ...input }: Partial<FIVISession> & { id: string }) => {
       const { data, error } = await supabase
         .from('fivi_sessions')
-        .update(input)
+        .update(input as any)
         .eq('id', id)
         .select()
         .single();
@@ -114,7 +167,6 @@ export const useFIVI = () => {
     },
   });
 
-  // Delete FIVI session
   const deleteMutation = useMutation({
     mutationFn: async (id: string) => {
       const { error } = await supabase
@@ -133,23 +185,67 @@ export const useFIVI = () => {
     },
   });
 
-  // Get sessions for a specific salesperson
+  const removeRecordingMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const { error } = await supabase
+        .from('fivi_sessions')
+        .update({ recording_url: null })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fivi-sessions'] });
+      toast.success('Link da gravação removido!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao remover gravação: ' + error.message);
+    },
+  });
+
+  const deleteAudioFile = async (filePath: string): Promise<boolean> => {
+    const { error } = await supabase.storage
+      .from('fivi-recordings')
+      .remove([filePath]);
+
+    if (error) {
+      console.error('Error deleting audio:', error);
+      return false;
+    }
+    return true;
+  };
+
+  const removeAudioMutation = useMutation({
+    mutationFn: async ({ id, filePath }: { id: string; filePath: string }) => {
+      await deleteAudioFile(filePath);
+      const { error } = await supabase
+        .from('fivi_sessions')
+        .update({ audio_file_path: null })
+        .eq('id', id);
+
+      if (error) throw error;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['fivi-sessions'] });
+      toast.success('Áudio removido com sucesso!');
+    },
+    onError: (error) => {
+      toast.error('Erro ao remover áudio: ' + error.message);
+    },
+  });
+
   const getSessionsBySalesperson = (salespersonId: string) => {
     return sessions.filter(s => s.salesperson_id === salespersonId);
   };
 
-  // Get latest session for a salesperson
   const getLatestSession = (salespersonId: string) => {
-    const salespersonSessions = getSessionsBySalesperson(salespersonId);
-    return salespersonSessions[0];
+    return getSessionsBySalesperson(salespersonId)[0];
   };
 
-  // Get sessions for a specific week
   const getSessionsByWeek = (weekNumber: number) => {
     return sessions.filter(s => s.week_number === weekNumber);
   };
 
-  // Calculate commitment fulfillment rate
   const getCommitmentRate = () => {
     const completedSessions = sessions.filter(s => 
       s.status === 'completed' && 
@@ -166,7 +262,6 @@ export const useFIVI = () => {
     return (fulfilled / completedSessions.length) * 100;
   };
 
-  // Get pending FIVIs for current week
   const getPendingFIVIs = (teamIds: string[], currentWeek: number) => {
     const completedThisWeek = sessions
       .filter(s => s.week_number === currentWeek && s.status === 'completed')
@@ -175,19 +270,79 @@ export const useFIVI = () => {
     return teamIds.filter(id => !completedThisWeek.includes(id));
   };
 
+  const uploadAudio = async (file: File | Blob): Promise<string | null> => {
+    if (!effectiveUserId) return null;
+
+    const ext = file instanceof File ? file.name.split('.').pop() : 'webm';
+    const fileName = `${effectiveUserId}/${Date.now()}.${ext}`;
+
+    const { error } = await supabase.storage
+      .from('fivi-recordings')
+      .upload(fileName, file, { cacheControl: '3600', upsert: false });
+
+    if (error) {
+      toast.error('Erro ao fazer upload do áudio: ' + error.message);
+      return null;
+    }
+    return fileName;
+  };
+
+  const getSignedAudioUrl = async (filePath: string): Promise<string | null> => {
+    const { data, error } = await supabase.storage
+      .from('fivi-recordings')
+      .createSignedUrl(filePath, 3600);
+
+    if (error) return null;
+    return data?.signedUrl || null;
+  };
+
+  const analyzeAudio = async (
+    audioFilePath: string,
+    salespersonId: string,
+    context: { salesperson_name: string; weekly_goal: number; weekly_realized: number }
+  ): Promise<AIAnalysis | null> => {
+    const previousSessions = sessions
+      .filter(s => s.salesperson_id === salespersonId)
+      .slice(0, 5)
+      .map(s => ({
+        week_number: s.week_number,
+        ai_summary: s.ai_summary,
+        ai_confidence_score: s.ai_confidence_score,
+        weekly_commitment: s.weekly_commitment,
+        weekly_realized: s.weekly_realized,
+      }));
+
+    const { data, error } = await supabase.functions.invoke('analyze-fivi-audio', {
+      body: { audioFilePath, salespersonId, context: { ...context, previous_sessions: previousSessions } },
+    });
+
+    if (error) throw error;
+    if (data?.error) throw new Error(data.error);
+    return data?.analysis || null;
+  };
+
   return {
     sessions,
     isLoading,
     error,
     createFIVI: createMutation.mutate,
+    createFIVIAsync: createMutation.mutateAsync,
     updateFIVI: updateMutation.mutate,
     deleteFIVI: deleteMutation.mutate,
+    removeRecording: removeRecordingMutation.mutate,
+    removeAudioFromSession: removeAudioMutation.mutate,
     isCreating: createMutation.isPending,
     isUpdating: updateMutation.isPending,
+    isRemovingRecording: removeRecordingMutation.isPending,
+    isRemovingAudio: removeAudioMutation.isPending,
     getSessionsBySalesperson,
     getLatestSession,
     getSessionsByWeek,
     getCommitmentRate,
     getPendingFIVIs,
+    uploadAudio,
+    getSignedAudioUrl,
+    deleteAudioFile,
+    analyzeAudio,
   };
 };

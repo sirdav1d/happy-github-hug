@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Settings, Save, User, Building, Palette, LogOut } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
@@ -11,15 +11,21 @@ import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { supabase } from "@/integrations/supabase/client";
-import { DashboardData, AppSettings } from "@/types";
+import { DashboardData, AppSettings, SettingsSection } from "@/types";
 import WhitelabelSettings from "./settings/WhitelabelSettings";
+import { TestUserManagement } from "./settings/TestUserManagement";
+import { GammaIntegrationSettings } from "./settings/GammaIntegrationSettings";
+import { NotebookLMSettings } from "./settings/NotebookLMSettings";
+import MentorshipSettings from "./settings/MentorshipSettings";
 
 interface SettingsViewProps {
   data: DashboardData;
   onSaveSettings?: (settings: { appSettings: AppSettings; companyName: string; segment: string }) => Promise<boolean>;
+  focusSection?: SettingsSection;
+  onSectionFocused?: () => void;
 }
 
-const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
+const SettingsView = ({ data, onSaveSettings, focusSection, onSectionFocused }: SettingsViewProps) => {
   const { user, userProfile, signOut, refreshProfile } = useAuth();
   const { toast } = useToast();
   
@@ -31,6 +37,41 @@ const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
   const [customSegment, setCustomSegment] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [isLoggingOut, setIsLoggingOut] = useState(false);
+
+  // Scroll to section when focusSection changes
+  useEffect(() => {
+    const sectionToElementId: Record<string, string> = {
+      gamma: "gamma-integration",
+      notebooklm: "notebooklm-integration",
+    };
+
+    if (focusSection && sectionToElementId[focusSection]) {
+      const elementId = sectionToElementId[focusSection];
+      
+      // Larger delay to ensure all animated components are rendered
+      const timer = setTimeout(() => {
+        const element = document.getElementById(elementId);
+        console.log("[SettingsView] Attempting scroll to", elementId, { element, focusSection });
+        if (element) {
+          // Calculate position and scroll
+          element.scrollIntoView({ behavior: "smooth", block: "center" });
+          
+          // Add highlight effect with transition
+          element.style.transition = "box-shadow 0.3s ease, outline 0.3s ease";
+          element.style.outline = "2px solid hsl(var(--primary))";
+          element.style.outlineOffset = "4px";
+          element.style.boxShadow = "0 0 20px hsl(var(--primary) / 0.3)";
+          
+          setTimeout(() => {
+            element.style.outline = "none";
+            element.style.boxShadow = "none";
+          }, 2500);
+        }
+        onSectionFocused?.();
+      }, 400); // Increased delay for animations to complete
+      return () => clearTimeout(timer);
+    }
+  }, [focusSection, onSectionFocused]);
 
   const handleLogout = async () => {
     setIsLoggingOut(true);
@@ -290,6 +331,15 @@ const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
         </Card>
       </motion.div>
 
+      {/* Mentorship Settings */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.25 }}
+      >
+        <MentorshipSettings mentorshipStartDate={data.mentorshipStartDate} />
+      </motion.div>
+
       {/* White-label Section (only for consultants) */}
       {userProfile?.role === 'consultant' && (
         <motion.div
@@ -300,6 +350,35 @@ const SettingsView = ({ data, onSaveSettings }: SettingsViewProps) => {
           <WhitelabelSettings />
         </motion.div>
       )}
+
+      {/* Test User Management (only for consultants) */}
+      {userProfile?.role === 'consultant' && (
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ delay: 0.35 }}
+        >
+          <TestUserManagement />
+        </motion.div>
+      )}
+
+      {/* Integrations Section */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.38 }}
+      >
+        <GammaIntegrationSettings />
+      </motion.div>
+
+      {/* NotebookLM Integration */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.39 }}
+      >
+        <NotebookLMSettings />
+      </motion.div>
 
       {/* App Settings */}
       <motion.div

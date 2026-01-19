@@ -17,6 +17,7 @@ const typeConfig: Record<NotificationType, { icon: React.ElementType; color: str
   lead: { icon: Filter, color: 'text-indigo-500', bg: 'bg-indigo-500/10' },
   goal: { icon: Target, color: 'text-rose-500', bg: 'bg-rose-500/10' },
   info: { icon: Info, color: 'text-blue-500', bg: 'bg-blue-500/10' },
+  rmr_deadline: { icon: AlertTriangle, color: 'text-orange-500', bg: 'bg-orange-500/10' },
 };
 
 const priorityConfig: Record<NotificationPriority, { border: string; badge: string }> = {
@@ -73,7 +74,7 @@ const NotificationCenter: React.FC<NotificationCenterProps> = ({ dashboardData, 
               animate={{ opacity: 1, y: 0, scale: 1 }}
               exit={{ opacity: 0, y: -10, scale: 0.95 }}
               transition={{ duration: 0.15 }}
-              className="absolute right-0 top-full mt-2 w-[340px] md:w-[380px] bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden"
+              className="absolute left-0 top-full mt-2 w-[340px] md:w-[380px] bg-card border border-border rounded-xl shadow-2xl z-50 overflow-hidden"
             >
               {/* Header */}
               <div className="flex items-center justify-between px-4 py-3 border-b border-border bg-muted/30">

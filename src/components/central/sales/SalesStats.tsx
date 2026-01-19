@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { DollarSign, TrendingUp, Users, ShoppingCart, Target, UserPlus } from 'lucide-react';
+import { DollarSign, TrendingUp, Users, ShoppingCart, Target, UserPlus, PhoneCall, Percent } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { Sale } from '@/types/sales';
 
@@ -11,13 +11,22 @@ interface SalesStatsProps {
 const SalesStats: React.FC<SalesStatsProps> = ({ sales, periodLabel }) => {
   const stats = useMemo(() => {
     const totalRevenue = sales.reduce((sum, s) => sum + Number(s.amount), 0);
-    const totalSales = sales.length;
-    const averageTicket = totalSales > 0 ? totalRevenue / totalSales : 0;
+    // Sum sales_count for accurate total sales (handles batch entries)
+    const totalSalesCount = sales.reduce((sum, s) => sum + Number(s.sales_count || 1), 0);
+    const averageTicket = totalSalesCount > 0 ? totalRevenue / totalSalesCount : 0;
     const newClients = sales.filter(s => s.is_new_client).length;
     const totalCAC = sales
       .filter(s => s.is_new_client)
       .reduce((sum, s) => sum + Number(s.acquisition_cost || 0), 0);
     const avgCAC = newClients > 0 ? totalCAC / newClients : 0;
+
+    // Total attendances
+    const totalAttendances = sales.reduce((sum, s) => sum + Number(s.attendances || 0), 0);
+    
+    // Conversion rate based on attendances
+    const conversionRate = totalAttendances > 0 
+      ? (totalSalesCount / totalAttendances) * 100 
+      : 0;
 
     // Vendedores únicos
     const uniqueSalespeople = new Set(sales.map(s => s.salesperson_id)).size;
@@ -27,18 +36,22 @@ const SalesStats: React.FC<SalesStatsProps> = ({ sales, periodLabel }) => {
     const presencialSales = sales.filter(s => s.channel === 'presencial');
     const onlineRevenue = onlineSales.reduce((sum, s) => sum + Number(s.amount), 0);
     const presencialRevenue = presencialSales.reduce((sum, s) => sum + Number(s.amount), 0);
+    const onlineSalesCount = onlineSales.reduce((sum, s) => sum + Number(s.sales_count || 1), 0);
+    const presencialSalesCount = presencialSales.reduce((sum, s) => sum + Number(s.sales_count || 1), 0);
 
     return {
       totalRevenue,
-      totalSales,
+      totalSalesCount,
       averageTicket,
       newClients,
       avgCAC,
+      totalAttendances,
+      conversionRate,
       uniqueSalespeople,
       onlineRevenue,
       presencialRevenue,
-      onlineCount: onlineSales.length,
-      presencialCount: presencialSales.length,
+      onlineSalesCount,
+      presencialSalesCount,
     };
   }, [sales]);
 
@@ -61,10 +74,24 @@ const SalesStats: React.FC<SalesStatsProps> = ({ sales, periodLabel }) => {
     },
     {
       label: 'Vendas',
-      value: stats.totalSales.toString(),
+      value: stats.totalSalesCount.toString(),
       icon: <ShoppingCart size={20} />,
       color: 'text-blue-500',
       bgColor: 'bg-blue-500/10',
+    },
+    {
+      label: 'Atendimentos',
+      value: stats.totalAttendances.toString(),
+      icon: <PhoneCall size={20} />,
+      color: 'text-indigo-500',
+      bgColor: 'bg-indigo-500/10',
+    },
+    {
+      label: 'Conversão',
+      value: stats.totalAttendances > 0 ? `${stats.conversionRate.toFixed(1)}%` : '-',
+      icon: <Percent size={20} />,
+      color: 'text-pink-500',
+      bgColor: 'bg-pink-500/10',
     },
     {
       label: 'Ticket Médio',
@@ -104,7 +131,7 @@ const SalesStats: React.FC<SalesStatsProps> = ({ sales, periodLabel }) => {
         </h3>
       </div>
 
-      <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+      <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-8 gap-3">
         {statCards.map((stat) => (
           <Card
             key={stat.label}
@@ -126,11 +153,11 @@ const SalesStats: React.FC<SalesStatsProps> = ({ sales, periodLabel }) => {
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Presencial</p>
               <p className="text-lg font-bold text-foreground">{formatCurrency(stats.presencialRevenue)}</p>
-              <p className="text-xs text-muted-foreground">{stats.presencialCount} vendas</p>
+              <p className="text-xs text-muted-foreground">{stats.presencialSalesCount} vendas</p>
             </div>
             <div className="text-3xl font-bold text-violet-500/20">
-              {stats.totalSales > 0 
-                ? Math.round((stats.presencialCount / stats.totalSales) * 100) 
+              {stats.totalSalesCount > 0 
+                ? Math.round((stats.presencialSalesCount / stats.totalSalesCount) * 100) 
                 : 0}%
             </div>
           </div>
@@ -141,11 +168,11 @@ const SalesStats: React.FC<SalesStatsProps> = ({ sales, periodLabel }) => {
             <div>
               <p className="text-xs text-muted-foreground uppercase tracking-wider">Online</p>
               <p className="text-lg font-bold text-foreground">{formatCurrency(stats.onlineRevenue)}</p>
-              <p className="text-xs text-muted-foreground">{stats.onlineCount} vendas</p>
+              <p className="text-xs text-muted-foreground">{stats.onlineSalesCount} vendas</p>
             </div>
             <div className="text-3xl font-bold text-cyan-500/20">
-              {stats.totalSales > 0 
-                ? Math.round((stats.onlineCount / stats.totalSales) * 100) 
+              {stats.totalSalesCount > 0 
+                ? Math.round((stats.onlineSalesCount / stats.totalSalesCount) * 100) 
                 : 0}%
             </div>
           </div>

@@ -2,7 +2,7 @@ export type SaleChannel = 'online' | 'presencial';
 
 export type LeadSource = 'indicacao' | 'redes_sociais' | 'google' | 'evento' | 'cold_call' | 'parceiro' | 'outro';
 
-export type EntryType = 'individual' | 'batch_weekly' | 'batch_monthly' | 'import';
+export type EntryType = 'individual' | 'batch_daily' | 'batch_weekly' | 'batch_monthly' | 'import';
 
 export interface Client {
   id: string;
@@ -32,6 +32,8 @@ export interface Sale {
   product_service?: string | null;
   notes?: string | null;
   entry_type?: EntryType | null;
+  sales_count?: number;
+  attendances?: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -50,17 +52,37 @@ export interface SaleFormData {
   product_service?: string;
   notes?: string;
   entry_type?: EntryType;
+  sales_count?: number;
+  attendances?: number;
 }
 
 export interface BatchSaleEntry {
   salesperson_id: string;
   salesperson_name: string;
+  // Daily fields
+  daily_amount?: number;
+  daily_sales_count?: number;
+  daily_attendances?: number;
+  // Weekly fields
   week1?: number;
+  week1_sales_count?: number;
+  week1_attendances?: number;
   week2?: number;
+  week2_sales_count?: number;
+  week2_attendances?: number;
   week3?: number;
+  week3_sales_count?: number;
+  week3_attendances?: number;
   week4?: number;
+  week4_sales_count?: number;
+  week4_attendances?: number;
   week5?: number;
+  week5_sales_count?: number;
+  week5_attendances?: number;
+  // Monthly fields
   monthly?: number;
+  monthly_sales_count?: number;
+  monthly_attendances?: number;
 }
 
 export interface ClientFormData {
@@ -87,6 +109,7 @@ export const CHANNEL_OPTIONS: { value: SaleChannel; label: string }[] = [
 
 export const ENTRY_TYPE_OPTIONS: { value: EntryType; label: string }[] = [
   { value: 'individual', label: 'Venda Individual' },
+  { value: 'batch_daily', label: 'Lote Diário' },
   { value: 'batch_weekly', label: 'Lote Semanal' },
   { value: 'batch_monthly', label: 'Lote Mensal' },
   { value: 'import', label: 'Importação' },

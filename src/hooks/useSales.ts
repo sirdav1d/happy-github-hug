@@ -8,7 +8,7 @@ interface UseSalesReturn {
   isLoading: boolean;
   error: string | null;
   createSale: (data: SaleFormData) => Promise<Sale | null>;
-  createBatchSales: (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType }[]) => Promise<boolean>;
+  createBatchSales: (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType; sales_count: number; attendances?: number }[]) => Promise<boolean>;
   updateSale: (id: string, data: Partial<SaleFormData>) => Promise<Sale | null>;
   deleteSale: (id: string) => Promise<boolean>;
   fetchSales: (filters?: SalesFilter) => Promise<void>;
@@ -99,6 +99,8 @@ export default function useSales(userId: string | undefined): UseSalesReturn {
           product_service: data.product_service || null,
           notes: data.notes || null,
           entry_type: data.entry_type || 'individual',
+          sales_count: data.sales_count || 1,
+          attendances: data.attendances || null,
         })
         .select()
         .single();
@@ -128,7 +130,7 @@ export default function useSales(userId: string | undefined): UseSalesReturn {
     }
   }, [userId, toast]);
 
-  const createBatchSales = useCallback(async (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType }[]): Promise<boolean> => {
+  const createBatchSales = useCallback(async (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType; sales_count: number; attendances?: number }[]): Promise<boolean> => {
     if (!userId || entries.length === 0) return false;
 
     setIsLoading(true);
@@ -145,9 +147,11 @@ export default function useSales(userId: string | undefined): UseSalesReturn {
         is_new_client: false,
         acquisition_cost: 0,
         entry_type: entry.entry_type,
+        sales_count: entry.sales_count,
+        attendances: entry.attendances || null,
         notes: entry.entry_type === 'import' 
           ? 'Importação retroativa' 
-          : `Lançamento em lote - ${entry.entry_type === 'batch_weekly' ? 'Semanal' : 'Mensal'}`,
+          : `Lançamento em lote - ${entry.entry_type === 'batch_daily' ? 'Diário' : entry.entry_type === 'batch_weekly' ? 'Semanal' : 'Mensal'}`,
       }));
 
       const { data: newSales, error: insertError } = await supabase

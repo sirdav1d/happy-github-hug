@@ -42,7 +42,7 @@ const SalesEntryView: React.FC<SalesEntryViewProps> = ({ team }) => {
     return createClient({ name });
   };
 
-  const handleBatchSubmit = async (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType }[]) => {
+  const handleBatchSubmit = async (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType; sales_count: number; attendances?: number }[]) => {
     setIsSubmitting(true);
     const success = await createBatchSales(entries);
     if (success) {
@@ -56,7 +56,8 @@ const SalesEntryView: React.FC<SalesEntryViewProps> = ({ team }) => {
 
   const handleImportSubmit = async (entries: { salesperson_id: string; salesperson_name: string; amount: number; sale_date: string; entry_type: EntryType }[]) => {
     setIsSubmitting(true);
-    const success = await createBatchSales(entries);
+    const importEntries = entries.map(e => ({ ...e, sales_count: 1 }));
+    const success = await createBatchSales(importEntries);
     if (success) {
       toast({
         title: 'Importação concluída!',
@@ -169,7 +170,7 @@ const SalesEntryView: React.FC<SalesEntryViewProps> = ({ team }) => {
             <TabsContent value="batch" className="mt-0 space-y-4">
               <div className="flex items-center gap-2 text-sm text-muted-foreground pb-2 border-b border-border/50">
                 <span className="w-2 h-2 bg-blue-500 rounded-full" />
-                Lance valores agregados por semana ou mês
+                Lance valores agregados por dia, semana ou mês
               </div>
               <SaleBatchForm
                 team={team}

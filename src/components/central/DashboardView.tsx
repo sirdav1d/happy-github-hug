@@ -9,11 +9,13 @@ import { motion } from 'framer-motion';
 import InfoTooltip from './InfoTooltip';
 import PulseCard from './dashboard/PulseCard';
 import MetricCard from './dashboard/MetricCard';
-import JourneyBanner from './dashboard/JourneyBanner';
+import JourneyCard from './dashboard/journey/JourneyCard';
 
 import ComparativeInsights from './dashboard/ComparativeInsights';
 import useAIInsights from '@/hooks/useAIInsights';
 import { DashboardData } from '@/types';
+import { useDashboardMetrics } from '@/hooks/useDashboardMetrics';
+import { useAuth } from '@/contexts/AuthContext';
 
 interface DashboardViewProps {
   data: DashboardData;
@@ -25,6 +27,13 @@ const formatCurrency = (val: number) =>
 const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
   const [period, setPeriod] = useState<'monthly' | 'quarterly' | 'annual'>('monthly');
   const { insights, isLoading: insightsLoading, fetchInsights } = useAIInsights();
+  const { user } = useAuth();
+
+  // Get current year for dynamic metrics
+  const currentYear = new Date().getFullYear();
+  
+  // Fetch dynamic metrics from sales table
+  const dynamicMetrics = useDashboardMetrics(currentYear);
 
   // Derivar anos dinamicamente dos dados disponíveis
   const availableYears = useMemo(() => {
@@ -34,27 +43,66 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
     if (data.yearsAvailable) {
       data.yearsAvailable.forEach(y => years.add(y));
     }
+    // Always include current year if we have dynamic data
+    if (dynamicMetrics.hasRealData) {
+      years.add(currentYear);
+    }
     return Array.from(years).sort();
-  }, [data]);
+  }, [data, dynamicMetrics.hasRealData, currentYear]);
 
-  // Determinar o ano selecionado e o ano anterior
+  // Determinar o ano selecionado - priorizar ano atual se tiver dados dinâmicos
   const selectedYear = useMemo(() => {
+    if (dynamicMetrics.hasRealData) {
+      return currentYear;
+    }
     if (data.currentYearData.length > 0) {
       return data.currentYearData[0].year;
     }
-    return new Date().getFullYear();
-  }, [data]);
+    return currentYear;
+  }, [data, dynamicMetrics.hasRealData, currentYear]);
 
   const lastYear = selectedYear - 1;
 
-  // Métricas do mês atual
+  // Determinar fonte de dados: dinâmico (sales) ou estático (dashboard_data)
+  const effectiveCurrentYearData = useMemo(() => {
+    // Se temos dados dinâmicos para o ano atual, usar eles
+    if (dynamicMetrics.hasRealData && selectedYear === currentYear) {
+      return dynamicMetrics.currentYearData;
+    }
+    // Fallback para dados da planilha
+    return data.currentYearData;
+  }, [dynamicMetrics, selectedYear, currentYear, data.currentYearData]);
+
+  // Métricas do mês atual - priorizar mês do calendário
   const currentMonthMetrics = useMemo(() => {
-    const validMonths = data.currentYearData.filter(d => d.revenue > 0);
-    const currentMonth = validMonths.length > 0 ? validMonths[validMonths.length - 1] : { revenue: 0, goal: 0, month: 'Jan' };
+    const now = new Date();
+    const currentMonthNumber = now.getMonth(); // 0-indexed
+    const monthNames = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+    const currentMonthName = monthNames[currentMonthNumber];
+    
+    // Prioridade 1: Mês atual do calendário (se estamos no ano atual)
+    let currentMonth = selectedYear === currentYear 
+      ? effectiveCurrentYearData.find(d => d.month === currentMonthName)
+      : null;
+    
+    // Prioridade 2: Se não há dados no mês atual, pegar último mês com vendas
+    if (!currentMonth || (currentMonth.revenue === 0 && currentMonth.goal === 0)) {
+      const validMonths = effectiveCurrentYearData.filter(d => d.revenue > 0 || d.goal > 0);
+      if (validMonths.length > 0) {
+        currentMonth = validMonths[validMonths.length - 1];
+      }
+    }
+    
+    // Fallback: mês atual mesmo sem dados
+    if (!currentMonth) {
+      currentMonth = { revenue: 0, goal: 0, month: currentMonthName, year: selectedYear };
+    }
     
     // Mês anterior para comparação
-    const previousMonthIndex = validMonths.length >= 2 ? validMonths.length - 2 : -1;
-    const previousMonth = previousMonthIndex >= 0 ? validMonths[previousMonthIndex] : null;
+    const currentMonthIdx = monthNames.indexOf(currentMonth.month);
+    const previousMonthData = currentMonthIdx > 0 
+      ? effectiveCurrentYearData.find(d => d.month === monthNames[currentMonthIdx - 1])
+      : null;
     
     // Mesmo mês do ano passado
     const sameMonthLastYear = data.historicalData.find(
@@ -63,11 +111,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
 
     return {
       current: currentMonth,
-      previous: previousMonth,
+      previous: previousMonthData,
       sameMonthLastYear,
       progressPercent: currentMonth.goal > 0 ? (currentMonth.revenue / currentMonth.goal) * 100 : 0,
     };
-  }, [data, lastYear]);
+  }, [effectiveCurrentYearData, data.historicalData, lastYear, selectedYear, currentYear]);
 
   // Run Rate corrigido - baseado no mês selecionado dos dados, não dia do sistema
   const runRateMetrics = useMemo(() => {
@@ -169,35 +217,51 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
     };
   }, [currentMonthMetrics]);
 
+  // Use KPIs dinâmicos se disponíveis
+  const effectiveKpis = useMemo(() => {
+    if (dynamicMetrics.hasRealData) {
+      return {
+        ...data.kpis,
+        annualGoal: dynamicMetrics.annualGoal || data.kpis.annualGoal,
+        annualRealized: dynamicMetrics.annualRealized,
+        averageTicket: dynamicMetrics.averageTicket || data.kpis.averageTicket,
+        conversionRate: dynamicMetrics.conversionRate || data.kpis.conversionRate,
+        totalSalesCount: dynamicMetrics.totalSalesCount || data.kpis.totalSalesCount,
+        totalAttendances: dynamicMetrics.totalAttendances || data.kpis.totalAttendances,
+      };
+    }
+    return data.kpis;
+  }, [data.kpis, dynamicMetrics]);
+
   // Buscar insights de IA quando os dados mudarem
   const refreshInsights = useCallback(() => {
     const metrics = {
-      annualGoal: data.kpis.annualGoal,
-      annualRealized: data.kpis.annualRealized,
-      lastYearGrowth: data.kpis.lastYearGrowth,
+      annualGoal: effectiveKpis.annualGoal,
+      annualRealized: effectiveKpis.annualRealized,
+      lastYearGrowth: effectiveKpis.lastYearGrowth,
       currentMonthRevenue: currentMonthMetrics.current.revenue,
       currentMonthGoal: currentMonthMetrics.current.goal,
       runRateProjection: runRateMetrics.projection,
-      averageTicket: data.kpis.averageTicket,
-      totalSalesCount: data.kpis.totalSalesCount,
+      averageTicket: effectiveKpis.averageTicket,
+      totalSalesCount: effectiveKpis.totalSalesCount,
       currentMonthName: currentMonthMetrics.current.month,
       gapToGoal: Math.max(0, currentMonthMetrics.current.goal - currentMonthMetrics.current.revenue),
       daysRemaining: runRateMetrics.daysRemaining,
       selectedYear: selectedYear,
     };
     fetchInsights(metrics);
-  }, [data.kpis, currentMonthMetrics, runRateMetrics, fetchInsights, selectedYear]);
+  }, [effectiveKpis, currentMonthMetrics, runRateMetrics, fetchInsights, selectedYear]);
 
   useEffect(() => {
-    if (data.kpis.annualGoal > 0) {
+    if (effectiveKpis.annualGoal > 0 || dynamicMetrics.hasRealData) {
       refreshInsights();
     }
-  }, [data.kpis.annualGoal, refreshInsights]);
+  }, [effectiveKpis.annualGoal, dynamicMetrics.hasRealData, refreshInsights]);
 
   // Dados de acumulado anual
   const annualAccumulated = useMemo(() => {
-    const totalRevenue = data.currentYearData.reduce((acc, d) => acc + d.revenue, 0);
-    const totalGoal = data.kpis.annualGoal || data.currentYearData.reduce((acc, d) => acc + d.goal, 0);
+    const totalRevenue = effectiveCurrentYearData.reduce((acc, d) => acc + d.revenue, 0);
+    const totalGoal = effectiveKpis.annualGoal || effectiveCurrentYearData.reduce((acc, d) => acc + d.goal, 0);
     const progressPercent = totalGoal > 0 ? (totalRevenue / totalGoal) * 100 : 0;
     
     // Calcular acumulado do ano passado até o mesmo mês
@@ -214,7 +278,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
       : 0;
     
     return { totalRevenue, totalGoal, progressPercent, vsLastYear };
-  }, [data, currentMonthMetrics, lastYear]);
+  }, [effectiveCurrentYearData, effectiveKpis, data.historicalData, currentMonthMetrics, lastYear]);
 
   // Chart data com % de meta atingida
   const chartData = useMemo(() => {
@@ -231,10 +295,10 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
       ];
       
       return quarters.map(q => {
-        const currentYearRevenue = data.currentYearData
+        const currentYearRevenue = effectiveCurrentYearData
           .filter(d => q.months.includes(d.month))
           .reduce((sum, d) => sum + d.revenue, 0);
-        const currentYearGoal = data.currentYearData
+        const currentYearGoal = effectiveCurrentYearData
           .filter(d => q.months.includes(d.month))
           .reduce((sum, d) => sum + d.goal, 0);
         
@@ -252,7 +316,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
       return availableYears.map(year => {
         const isCurrentYear = year === selectedYear;
         const yearData = isCurrentYear 
-          ? data.currentYearData 
+          ? effectiveCurrentYearData 
           : data.historicalData.filter(d => d.year === year);
         
         const totalRevenue = yearData.reduce((acc, curr) => acc + curr.revenue, 0);
@@ -269,13 +333,13 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
     }
 
     // Mensal
-    return data.currentYearData.map(d => ({ 
+    return effectiveCurrentYearData.map(d => ({ 
       name: d.month, 
       revenue: d.revenue, 
       goal: d.goal, 
       goalPercent: calculateGoalPercent(d.revenue, d.goal),
     }));
-  }, [period, data, availableYears, selectedYear]);
+  }, [period, effectiveCurrentYearData, data.historicalData, availableYears, selectedYear]);
 
   // Função para determinar cor da barra
   const getBarColor = (goalPercent: number) => {
@@ -286,10 +350,9 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
 
   return (
     <div className="space-y-6 animate-fade-in">
-      {/* Journey Banner */}
-      <JourneyBanner
-        mentorshipStartDate={data.mentorshipStartDate}
-        mentorshipDurationMonths={6}
+      {/* Journey Card - Expandable */}
+      <JourneyCard
+        data={data}
         selectedMonth={(() => {
           const monthMap: Record<string, number> = {
             'Jan': 1, 'Fev': 2, 'Mar': 3, 'Abr': 4, 'Mai': 5, 'Jun': 6,
@@ -300,7 +363,6 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         selectedYear={selectedYear}
         currentMonthName={currentMonthMetrics.current.month}
         progressPercent={currentMonthMetrics.progressPercent}
-        annualProgress={annualAccumulated.progressPercent}
       />
 
       {/* Main KPIs Grid - 4 Columns Centered */}
@@ -321,7 +383,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
                   <p className="text-[10px] font-bold uppercase tracking-wider text-muted-foreground">
                     Meta Prevista
                   </p>
-                  <InfoTooltip text="Meta mensal calculada a partir da sua meta anual, distribuída proporcionalmente. É o valor que você precisa vender para manter o ritmo de crescimento desejado." />
+                  <InfoTooltip text={
+                    currentMonthMetrics.current.goal > 0
+                      ? `Meta calculada automaticamente: faturamento de ${currentMonthMetrics.current.month}/${selectedYear - 1} + 15% de crescimento.`
+                      : "Sem histórico do mesmo mês do ano anterior. Cadastre vendas retroativas ou aguarde dados históricos."
+                  } />
                 </div>
                 <p className="text-xs text-primary font-semibold">{currentMonthMetrics.current.month}/{selectedYear}</p>
               </div>
@@ -331,25 +397,37 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
             </div>
             
             <h3 className="text-xl font-black text-foreground mb-2">
-              {formatCurrency(currentMonthMetrics.current.goal)}
+              {currentMonthMetrics.current.goal > 0 
+                ? formatCurrency(currentMonthMetrics.current.goal)
+                : <span className="text-muted-foreground text-lg">Sem meta</span>
+              }
             </h3>
 
-            {/* Percentual realizado vs previsto */}
-            <div className="flex items-center gap-2">
-              <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
-                currentMonthMetrics.progressPercent >= 100 
-                  ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
-                  : currentMonthMetrics.progressPercent >= 80
-                  ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
-                  : 'bg-red-500/20 text-red-600 dark:text-red-400'
-              }`}>
-                {currentMonthMetrics.progressPercent >= 100 ? (
-                  <><Trophy size={10} /> +{(currentMonthMetrics.progressPercent - 100).toFixed(0)}% acima</>
-                ) : (
-                  <><AlertTriangle size={10} /> -{(100 - currentMonthMetrics.progressPercent).toFixed(0)}% faltando</>
-                )}
+            {/* Indicador de origem da meta */}
+            {currentMonthMetrics.current.goal > 0 ? (
+              <div className="flex flex-col gap-1">
+                <span className="text-[9px] text-muted-foreground flex items-center gap-1">
+                  <TrendingUp size={9} /> Histórico +15%
+                </span>
+                <span className={`flex items-center gap-1 text-[10px] font-bold px-2 py-0.5 rounded ${
+                  currentMonthMetrics.progressPercent >= 100 
+                    ? 'bg-emerald-500/20 text-emerald-600 dark:text-emerald-400' 
+                    : currentMonthMetrics.progressPercent >= 80
+                    ? 'bg-amber-500/20 text-amber-600 dark:text-amber-400'
+                    : 'bg-red-500/20 text-red-600 dark:text-red-400'
+                }`}>
+                  {currentMonthMetrics.progressPercent >= 100 ? (
+                    <><Trophy size={10} /> +{(currentMonthMetrics.progressPercent - 100).toFixed(0)}% acima</>
+                  ) : (
+                    <><AlertTriangle size={10} /> -{(100 - currentMonthMetrics.progressPercent).toFixed(0)}% faltando</>
+                  )}
+                </span>
+              </div>
+            ) : (
+              <span className="text-[9px] text-amber-500 flex items-center gap-1">
+                <AlertTriangle size={9} /> Sem histórico de {currentMonthMetrics.current.month}/{selectedYear - 1}
               </span>
-            </div>
+            )}
           </div>
         </motion.div>
 
@@ -631,6 +709,7 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         historicalData={data.historicalData}
         selectedYear={selectedYear}
         lastYear={lastYear}
+        availableYears={data.yearsAvailable}
       />
 
       {/* Efficiency Metrics */}
@@ -645,11 +724,11 @@ const DashboardView: React.FC<DashboardViewProps> = ({ data }) => {
         </h4>
         <div className="grid grid-cols-2 lg:grid-cols-5 gap-3">
           {[
-            { icon: <CreditCard size={16} />, label: 'Ticket Médio', value: data.kpis.averageTicket, format: formatCurrency, tooltip: 'Receita total dividida pelo número de vendas. Um ticket maior significa vendas de maior valor.' },
-            { icon: <Percent size={16} />, label: 'Conversão', value: data.kpis.conversionRate, format: (v: number) => `${v.toFixed(1)}%`, tooltip: 'Percentual de atendimentos que resultaram em vendas. Calculado como: (vendas ÷ atendimentos) × 100.' },
-            { icon: <Users size={16} />, label: 'CAC', value: data.kpis.cac, format: formatCurrency, tooltip: 'Custo de Aquisição de Cliente: quanto você gasta em marketing e vendas para conquistar cada novo cliente.' },
-            { icon: <Activity size={16} />, label: 'LTV Estimado', value: data.kpis.ltv, format: formatCurrency, tooltip: 'Lifetime Value: receita média estimada que um cliente gera ao longo do relacionamento com sua empresa.' },
-            { icon: <ShoppingBag size={16} />, label: 'Vendas Totais', value: data.kpis.totalSalesCount, format: (v: number) => Math.round(v).toString(), tooltip: 'Quantidade de vendas realizadas no período, independente do valor de cada uma.' },
+            { icon: <CreditCard size={16} />, label: 'Ticket Médio', value: effectiveKpis.averageTicket, format: formatCurrency, tooltip: 'Receita total dividida pelo número de vendas. Um ticket maior significa vendas de maior valor.' },
+            { icon: <Percent size={16} />, label: 'Conversão', value: effectiveKpis.conversionRate, format: (v: number) => `${v.toFixed(1)}%`, tooltip: 'Percentual de atendimentos que resultaram em vendas. Calculado como: (vendas ÷ atendimentos) × 100.' },
+            { icon: <Users size={16} />, label: 'CAC', value: effectiveKpis.cac, format: formatCurrency, tooltip: 'Custo de Aquisição de Cliente: quanto você gasta em marketing e vendas para conquistar cada novo cliente.' },
+            { icon: <Activity size={16} />, label: 'LTV Estimado', value: effectiveKpis.ltv, format: formatCurrency, tooltip: 'Lifetime Value: receita média estimada que um cliente gera ao longo do relacionamento com sua empresa.' },
+            { icon: <ShoppingBag size={16} />, label: 'Vendas Totais', value: effectiveKpis.totalSalesCount, format: (v: number) => Math.round(v).toString(), tooltip: 'Quantidade de vendas realizadas no período, independente do valor de cada uma.' },
           ].map((metric, idx) => (
             <div
               key={metric.label}

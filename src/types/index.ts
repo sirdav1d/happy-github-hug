@@ -35,6 +35,13 @@ export interface Salesperson {
   isPlaceholder?: boolean;
   totalSalesCount: number;
   totalAttendances?: number;
+  // Campos adicionados pelo enriquecimento de período (TeamView)
+  averageTicket?: number;
+  conversionRate?: number;
+  salesCount?: number;
+  attendances?: number;
+  performance?: number;
+  participation?: number;
 }
 
 export interface KPI {
@@ -85,6 +92,7 @@ export type ViewState =
   | 'pipeline'
   | 'seasonality'
   | 'team'
+  | 'salespeople'
   | 'pgv'
   | 'rmr'
   | 'fivi'
@@ -92,9 +100,19 @@ export type ViewState =
   | 'ai-summary'
   | 'glossary'
   | 'settings'
+  | 'goal-center'
   | 'admin-users'
   | 'input-center'
-  | 'agency-global';
+  | 'agency-global'
+  | 'video-library'
+  | 'behavioral';
+
+// Settings section for navigation with scroll
+export type SettingsSection = 'gamma' | 'whitelabel' | 'profile' | 'notebooklm' | null;
+
+export interface NavigationOptions {
+  section?: SettingsSection;
+}
 
 // ============ Rituais Types ============
 

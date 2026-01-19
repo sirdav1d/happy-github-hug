@@ -3,9 +3,10 @@ import { useRMR } from './useRMR';
 import { useFIVI } from './useFIVI';
 import { useLeads } from './useLeads';
 import { useMentoringSessions } from './useMentoringSessions';
+import { useRMRPreparation } from './useRMRPreparation';
 import { DashboardData, Salesperson } from '@/types';
 
-export type NotificationType = 'ritual' | 'lead' | 'goal' | 'info';
+export type NotificationType = 'ritual' | 'lead' | 'goal' | 'info' | 'rmr_deadline';
 export type NotificationPriority = 'high' | 'medium' | 'low';
 
 export interface Notification {
@@ -33,6 +34,8 @@ export const useNotifications = (dashboardData?: DashboardData) => {
   const { sessions, getPendingFIVIs } = useFIVI();
   const { leads } = useLeads();
   const { getUpcomingSessions } = useMentoringSessions();
+  const { daysRemaining, deadlineStatus, preparationStatus } = useRMRPreparation();
+  
   const notifications = useMemo(() => {
     const alerts: Notification[] = [];
     const now = new Date();
@@ -40,6 +43,39 @@ export const useNotifications = (dashboardData?: DashboardData) => {
     const currentYear = now.getFullYear();
     const currentWeek = getWeekNumber(now);
     const dayOfMonth = now.getDate();
+
+    // 0. RMR Deadline Notifications (new)
+    if (daysRemaining <= 7 && !preparationStatus?.is_prepared) {
+      let priority: NotificationPriority = 'medium';
+      let title = 'Prepare sua RMR';
+      let description = `${daysRemaining} dias restantes para preparar a RMR do próximo mês.`;
+
+      if (daysRemaining <= 1) {
+        priority = 'high';
+        title = 'RMR - Último dia!';
+        description = 'Hoje é o último dia para preparar sua RMR. Ação urgente necessária!';
+      } else if (daysRemaining <= 3) {
+        priority = 'high';
+        title = 'RMR - 3 dias restantes';
+        description = 'Apenas 3 dias para preparar sua RMR. Não deixe para última hora!';
+      } else if (daysRemaining < 0) {
+        priority = 'high';
+        title = 'RMR Atrasada!';
+        description = 'O prazo de preparação da RMR expirou. Prepare imediatamente!';
+      }
+
+      alerts.push({
+        id: 'rmr-deadline',
+        type: 'rmr_deadline',
+        priority,
+        title,
+        description,
+        action: { label: 'Preparar RMR', view: 'rmr' },
+        timestamp: now,
+      });
+    }
+
+    // 1. RMR Pendente - Check if current month RMR is missing (after day 1)
 
     // 1. RMR Pendente - Check if current month RMR is missing (after day 1)
     if (dayOfMonth >= 1) {
@@ -235,7 +271,7 @@ export const useNotifications = (dashboardData?: DashboardData) => {
     // Sort by priority (high first) then by type
     const priorityOrder = { high: 0, medium: 1, low: 2 };
     return alerts.sort((a, b) => priorityOrder[a.priority] - priorityOrder[b.priority]);
-  }, [meetings, sessions, leads, dashboardData, getPendingFIVIs, getUpcomingSessions]);
+  }, [meetings, sessions, leads, dashboardData, getPendingFIVIs, getUpcomingSessions, daysRemaining, deadlineStatus, preparationStatus]);
 
   const highPriorityCount = useMemo(() => 
     notifications.filter(n => n.priority === 'high').length, 

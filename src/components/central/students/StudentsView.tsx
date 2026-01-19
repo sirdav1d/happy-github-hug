@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useAuth } from '@/contexts/AuthContext';
 import useStudents, { Student } from '@/hooks/useStudents';
+import { useMentorshipPhase, PHASE_FEATURES } from '@/hooks/useMentorshipPhase';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -33,6 +34,19 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from '@/components/ui/tooltip';
 import { 
   Users, 
   UserPlus, 
@@ -46,8 +60,14 @@ import {
   RefreshCw,
   Search,
   Clock,
-  CheckCircle
+  CheckCircle,
+  Zap,
+  Lock,
+  Unlock,
+  Link2,
+  Brain
 } from 'lucide-react';
+import { Switch } from '@/components/ui/switch';
 import { format, formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 
@@ -57,9 +77,11 @@ interface StudentsViewProps {
 
 export default function StudentsView({ onViewStudent }: StudentsViewProps) {
   const { user } = useAuth();
-  const { students, isLoading, inviteStudent, removeInvite, fetchStudents } = useStudents(user?.id);
+  const { students, isLoading, inviteStudent, removeInvite, linkExistingStudent, fetchStudents } = useStudents(user?.id);
   const [inviteEmail, setInviteEmail] = useState('');
+  const [linkEmail, setLinkEmail] = useState('');
   const [isInviteDialogOpen, setIsInviteDialogOpen] = useState(false);
+  const [isLinkDialogOpen, setIsLinkDialogOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
 
   const handleInvite = async () => {
@@ -69,6 +91,16 @@ export default function StudentsView({ onViewStudent }: StudentsViewProps) {
     if (success) {
       setInviteEmail('');
       setIsInviteDialogOpen(false);
+    }
+  };
+
+  const handleLinkExisting = async () => {
+    if (!linkEmail.trim()) return;
+    
+    const success = await linkExistingStudent(linkEmail.trim());
+    if (success) {
+      setLinkEmail('');
+      setIsLinkDialogOpen(false);
     }
   };
 
@@ -119,7 +151,48 @@ export default function StudentsView({ onViewStudent }: StudentsViewProps) {
             <RefreshCw className={`w-4 h-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
             Atualizar
           </Button>
+
+          {/* Vincular Aluno Existente */}
+          <Dialog open={isLinkDialogOpen} onOpenChange={setIsLinkDialogOpen}>
+            <DialogTrigger asChild>
+              <Button variant="outline" size="sm">
+                <Link2 className="w-4 h-4 mr-2" />
+                Vincular Existente
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Vincular Aluno Existente</DialogTitle>
+                <DialogDescription>
+                  Vincule um aluno que já possui conta no sistema. Digite o email cadastrado dele.
+                </DialogDescription>
+              </DialogHeader>
+              <div className="py-4">
+                <Input
+                  type="email"
+                  placeholder="email@exemplo.com"
+                  value={linkEmail}
+                  onChange={(e) => setLinkEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleLinkExisting()}
+                />
+              </div>
+              <DialogFooter>
+                <Button variant="outline" onClick={() => setIsLinkDialogOpen(false)}>
+                  Cancelar
+                </Button>
+                <Button onClick={handleLinkExisting} disabled={isLoading || !linkEmail.trim()}>
+                  {isLoading ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : (
+                    <Link2 className="w-4 h-4 mr-2" />
+                  )}
+                  Vincular Aluno
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
           
+          {/* Convidar Novo Aluno */}
           <Dialog open={isInviteDialogOpen} onOpenChange={setIsInviteDialogOpen}>
             <DialogTrigger asChild>
               <Button size="sm">
@@ -250,6 +323,8 @@ export default function StudentsView({ onViewStudent }: StudentsViewProps) {
                   <TableRow>
                     <TableHead>Aluno</TableHead>
                     <TableHead>Status</TableHead>
+                    <TableHead>Fase</TableHead>
+                    <TableHead>Comportamental</TableHead>
                     <TableHead>Progresso Anual</TableHead>
                     <TableHead>Equipe</TableHead>
                     <TableHead>Último Upload</TableHead>
@@ -287,11 +362,28 @@ interface StudentRowProps {
 
 function StudentRow({ student, onRemove, onView, formatCurrency, getProgressPercent }: StudentRowProps) {
   const [isRemoving, setIsRemoving] = useState(false);
+  const { getStudentPhase, promoteToPhase2, isPromoting, toggleBehavioralModule, isTogglingBehavioral } = useMentorshipPhase();
+  
+  const studentPhase = getStudentPhase(student.registeredUid || student.id);
+  const currentPhase = studentPhase?.current_phase || 1;
+  const hasBehavioralAccess = studentPhase?.behavioral_module_enabled ?? false;
 
   const handleRemove = async () => {
     setIsRemoving(true);
     await onRemove(student.id);
     setIsRemoving(false);
+  };
+
+  const handlePhaseChange = (value: string) => {
+    if (value === '2' && student.registeredUid) {
+      promoteToPhase2(student.registeredUid);
+    }
+  };
+
+  const handleBehavioralToggle = (checked: boolean) => {
+    if (student.registeredUid) {
+      toggleBehavioralModule({ userId: student.registeredUid, enabled: checked });
+    }
   };
 
   const progress = getProgressPercent(
@@ -324,6 +416,107 @@ function StudentRow({ student, onRemove, onView, formatCurrency, getProgressPerc
             <Clock className="w-3 h-3 mr-1" />
             Pendente
           </Badge>
+        )}
+      </TableCell>
+
+      {/* Phase Control */}
+      <TableCell>
+        {student.status === 'registered' ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div>
+                  <Select
+                    value={String(currentPhase)}
+                    onValueChange={handlePhaseChange}
+                    disabled={isPromoting || currentPhase === 2}
+                  >
+                    <SelectTrigger className={`w-[130px] h-8 text-xs ${
+                      currentPhase === 2 
+                        ? 'bg-violet-500/10 border-violet-500/30 text-violet-400' 
+                        : 'bg-secondary/50'
+                    }`}>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="1">
+                        <div className="flex items-center gap-2">
+                          <Lock className="w-3 h-3" />
+                          <span>Fase 1</span>
+                        </div>
+                      </SelectItem>
+                      <SelectItem value="2">
+                        <div className="flex items-center gap-2">
+                          <Zap className="w-3 h-3 text-violet-500" />
+                          <span>Fase 2</span>
+                        </div>
+                      </SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[250px]">
+                {currentPhase === 1 ? (
+                  <div>
+                    <p className="font-medium mb-1">Fase 1: Básico + Assistido</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>• Sugestões visíveis (somente leitura)</li>
+                      <li>• Wizard manual completo</li>
+                      <li>• Notificações de prazo</li>
+                    </ul>
+                    <p className="text-xs mt-2 text-violet-400">
+                      Promova para Fase 2 para desbloquear automação
+                    </p>
+                  </div>
+                ) : (
+                  <div>
+                    <p className="font-medium mb-1 text-violet-400">Fase 2: Premium ✨</p>
+                    <ul className="text-xs text-muted-foreground space-y-1">
+                      <li>• Seleção de sugestões liberada</li>
+                      <li>• Geração de roteiro com IA</li>
+                      <li>• Download de PDF</li>
+                      <li>• Insights detalhados</li>
+                    </ul>
+                  </div>
+                )}
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
+        )}
+      </TableCell>
+      
+      {/* Behavioral Module Access */}
+      <TableCell>
+        {student.status === 'registered' ? (
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="flex items-center gap-2">
+                  <Switch
+                    checked={hasBehavioralAccess}
+                    onCheckedChange={handleBehavioralToggle}
+                    disabled={isTogglingBehavioral}
+                    className={hasBehavioralAccess ? 'data-[state=checked]:bg-fuchsia-500' : ''}
+                  />
+                  <Brain className={`w-4 h-4 ${hasBehavioralAccess ? 'text-fuchsia-500' : 'text-muted-foreground/50'}`} />
+                </div>
+              </TooltipTrigger>
+              <TooltipContent side="top" className="max-w-[220px]">
+                <p className="font-medium mb-1">
+                  {hasBehavioralAccess ? 'Acesso Liberado' : 'Acesso Bloqueado'}
+                </p>
+                <p className="text-xs text-muted-foreground">
+                  {hasBehavioralAccess 
+                    ? 'O aluno pode acessar o módulo de Análise Comportamental'
+                    : 'Ative para liberar acesso ao módulo de Análise Comportamental'}
+                </p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+        ) : (
+          <span className="text-muted-foreground text-sm">-</span>
         )}
       </TableCell>
       

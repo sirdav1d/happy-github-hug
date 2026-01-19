@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useMemo } from "react";
 import { motion } from "framer-motion";
-import { ClipboardList, Target, Users, Award, Edit2, ChevronLeft, ChevronRight } from "lucide-react";
+import { ClipboardList, Target, Users, Award, Edit2, ChevronLeft, ChevronRight, Sparkles, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Progress } from "@/components/ui/progress";
@@ -10,15 +10,20 @@ import { cn } from "@/lib/utils";
 import InfoTooltip from "../InfoTooltip";
 import PGVEditableCell from "./PGVEditableCell";
 import PremiumPolicyConfig from "./PremiumPolicyConfig";
-import { Salesperson } from "@/types";
+import { Salesperson, MonthlyData } from "@/types";
 import { usePGV } from "@/hooks/usePGV";
 import { usePremiumPolicy } from "@/hooks/usePremiumPolicy";
+import { useTeamWithGoals } from "@/hooks/useTeamWithGoals";
+import { SalespeopleMigrationBanner } from "@/components/central/salespeople/SalespeopleMigrationBanner";
+import { generatePGVSpreadsheet, downloadBlob } from "@/lib/templateGenerator";
 
 interface PGVSemanalViewProps {
   team: Salesperson[];
   monthlyGoal?: number;
   referenceMonth?: number;
   referenceYear?: number;
+  historicalData?: MonthlyData[];
+  currentYearData?: MonthlyData[];
 }
 
 // Calcular número de semanas em um mês
@@ -40,7 +45,9 @@ const PGVSemanalView = ({
   team, 
   monthlyGoal = 200000,
   referenceMonth,
-  referenceYear 
+  referenceYear,
+  historicalData = [],
+  currentYearData = []
 }: PGVSemanalViewProps) => {
   const [currentWeek, setCurrentWeek] = useState(1);
   
@@ -85,10 +92,41 @@ const PGVSemanalView = ({
   const { entries, isUpdating, upsertEntry } = usePGV(selectedMonth, selectedYear);
   const { tiers, upsertPolicy, isUpdating: isPolicyUpdating } = usePremiumPolicy();
 
+  // Buscar a meta do mês selecionado dinamicamente
+  const monthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+  const selectedMonthName = monthNames[selectedMonth - 1];
+  
+  const selectedMonthGoal = useMemo(() => {
+    // Primeiro tenta no currentYearData se o ano selecionado for o ano de referência
+    if (selectedYear === refYear) {
+      const currentYearMatch = currentYearData.find(d => d.month === selectedMonthName);
+      if (currentYearMatch?.goal) return currentYearMatch.goal;
+    }
+    
+    // Senão busca no historicalData
+    const historicalMatch = historicalData.find(
+      d => d.month === selectedMonthName && d.year === selectedYear
+    );
+    if (historicalMatch?.goal) return historicalMatch.goal;
+    
+    // Fallback para o monthlyGoal prop
+    return monthlyGoal;
+  }, [selectedMonth, selectedYear, refYear, currentYearData, historicalData, monthlyGoal, selectedMonthName]);
+
   // Calcular semanas dinamicamente baseado no mês/ano selecionado
   const weeksInMonth = getWeeksInMonth(selectedMonth, selectedYear);
-  const weeklyGoal = monthlyGoal / weeksInMonth;
+  const weeklyGoal = selectedMonthGoal / weeksInMonth;
   const dailyWorkingDays = 5;
+
+  // Usar o novo hook de cálculo de metas integrado
+  const { team: calculatedTeam, summary: teamSummary } = useTeamWithGoals({
+    month: selectedMonth,
+    year: selectedYear,
+    weeksInMonth,
+    teamMonthlyGoal: selectedMonthGoal,
+    legacyTeam: team,
+    useLegacyFallback: true,
+  });
   
   const formatCurrency = (value: number) => {
     return new Intl.NumberFormat("pt-BR", {
@@ -99,8 +137,10 @@ const PGVSemanalView = ({
     }).format(value);
   };
 
-  // Prepare team data with week data
-  const activeTeam = team.filter(s => s.active && !s.isPlaceholder);
+  // Prepare team data with week data - use calculated team when available
+  const activeTeam = calculatedTeam.length > 0 
+    ? calculatedTeam.filter(s => s.active && !s.isPlaceholder)
+    : team.filter(s => s.active && !s.isPlaceholder);
   
   const teamData = activeTeam.map(salesperson => {
     // Check if there's a database entry for this salesperson
@@ -109,23 +149,29 @@ const PGVSemanalView = ({
     );
 
     // Buscar dados da semana no histórico do vendedor
-    const weekData = salesperson.weeks.find(w => w.week === currentWeek) || {
+    const weekData = salesperson.weeks?.find(w => w.week === currentWeek) || {
       week: currentWeek,
       revenue: 0,
       goal: 0
     };
     
-    const accumulatedRevenue = salesperson.weeks
+    const accumulatedRevenue = (salesperson.weeks || [])
       .filter(w => w.week <= currentWeek)
       .reduce((sum, w) => sum + w.revenue, 0);
     
-    // Calcular meta semanal individual: prioridade para DB > upload (se > 0) > meta mensal do vendedor / semanas
+    // Usar meta calculada pelo novo sistema se disponível, senão fallback para cálculo antigo
+    const hasCalculatedGoal = 'weeklyGoal' in salesperson && salesperson.weeklyGoal > 0;
     const salespersonWeeklyGoal = dbEntry?.weekly_goal 
+      || (hasCalculatedGoal ? salesperson.weeklyGoal : 0)
       || (weekData.goal > 0 ? weekData.goal : (salesperson.monthlyGoal || 0) / weeksInMonth);
     
     const dailyGoal = salespersonWeeklyGoal / dailyWorkingDays;
     const weeklyRealized = dbEntry?.weekly_realized ?? weekData.revenue;
     const percentAchieved = salespersonWeeklyGoal > 0 ? (weeklyRealized / salespersonWeeklyGoal) * 100 : 0;
+    
+    // Check if salesperson is in ramp-up period
+    const isRampUp = 'isRampUp' in salesperson ? salesperson.isRampUp : false;
+    const ruleApplied = 'ruleApplied' in salesperson ? salesperson.ruleApplied : undefined;
     
     return {
       ...salesperson,
@@ -135,6 +181,8 @@ const PGVSemanalView = ({
       percentAchieved,
       accumulatedRevenue: dbEntry?.monthly_accumulated || accumulatedRevenue,
       dbEntryId: dbEntry?.id,
+      isRampUp,
+      ruleApplied,
     };
   }).sort((a, b) => b.percentAchieved - a.percentAchieved);
 
@@ -178,6 +226,35 @@ const PGVSemanalView = ({
           </h1>
         </div>
         <div className="flex items-center gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              const exportData = {
+                team: teamData.map(s => ({
+                  id: s.id,
+                  name: s.name,
+                  dailyGoal: s.dailyGoal,
+                  weeklyGoal: s.weeklyGoal,
+                  monthlyGoal: s.monthlyGoal || 0,
+                  weeks: s.weeks || [],
+                  totalRevenue: s.accumulatedRevenue || 0,
+                  percentAchieved: s.percentAchieved,
+                })),
+                month: selectedMonth,
+                year: selectedYear,
+                weeksInMonth,
+                monthlyGoal: selectedMonthGoal,
+              };
+              const blob = generatePGVSpreadsheet(exportData);
+              const monthAbbr = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"][selectedMonth - 1];
+              downloadBlob(blob, `PGV_${monthAbbr}_${selectedYear}.xlsx`);
+            }}
+            className="gap-1.5"
+          >
+            <Download className="h-3.5 w-3.5" />
+            Exportar Excel
+          </Button>
           <Badge variant="outline" className="gap-1">
             <Edit2 className="h-3 w-3" />
             Clique nos valores para editar
@@ -240,7 +317,7 @@ const PGVSemanalView = ({
             </CardHeader>
             <CardContent>
               <div className="text-2xl font-bold text-foreground">
-                {formatCurrency(monthlyGoal)}
+                {formatCurrency(selectedMonthGoal)}
               </div>
             </CardContent>
           </Card>
@@ -256,7 +333,7 @@ const PGVSemanalView = ({
               <CardTitle className="text-sm font-medium text-muted-foreground flex items-center gap-1">
                 Meta Semanal
                 <InfoTooltip 
-                  text={`Meta do mês dividida pelo número de semanas. Cálculo: ${formatCurrency(monthlyGoal)} ÷ ${weeksInMonth} semanas = ${formatCurrency(weeklyGoal)}`}
+                  text={`Meta do mês dividida pelo número de semanas. Cálculo: ${formatCurrency(selectedMonthGoal)} ÷ ${weeksInMonth} semanas = ${formatCurrency(weeklyGoal)}`}
                   maxWidth={320}
                 />
               </CardTitle>

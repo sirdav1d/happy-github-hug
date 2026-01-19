@@ -6,6 +6,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ClientProvider } from "@/contexts/ClientContext";
 import { ViewAsStudentProvider, useViewAsStudent } from "@/contexts/ViewAsStudentContext";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import LoginView from "@/components/central/LoginView";
 import DashboardView from "@/components/central/DashboardView";
 import TeamView from "@/components/central/TeamView";
@@ -23,6 +24,8 @@ import ExecutiveSummaryView from "@/components/central/ExecutiveSummaryView";
 import GlossaryView from "@/components/central/GlossaryView";
 import StudentsView from "@/components/central/students/StudentsView";
 import AgencyGlobalView from "@/components/central/agency/AgencyGlobalView";
+import { SalespeopleManagement } from "@/components/central/salespeople/SalespeopleManagement";
+import { GoalCenterSettings } from "@/components/central/settings/GoalCenterSettings";
 import OnboardingWizard from "@/components/central/onboarding/OnboardingWizard";
 import ViewingAsBanner from "@/components/central/ViewingAsBanner";
 import Sidebar from "@/components/central/Sidebar";
@@ -33,7 +36,9 @@ import useUploadSheet from "@/hooks/useUploadSheet";
 import useDashboardData from "@/hooks/useDashboardData";
 import useWhitelabel from "@/hooks/useWhitelabel";
 import { useIsMobile } from "@/hooks/use-mobile";
-import { DashboardData, ViewState, UploadConfig } from "@/types";
+import { DashboardData, ViewState, UploadConfig, SettingsSection, NavigationOptions } from "@/types";
+import { VideoLibraryManager } from "@/components/central/video-library/VideoLibraryManager";
+import { BehavioralView } from "@/components/central/behavioral/BehavioralView";
 
 // Criar queryClient fora do componente mas com uma função
 const createQueryClient = () => new QueryClient();
@@ -137,18 +142,35 @@ const AuthenticatedApp = () => {
   const { userProfile, user, refreshProfile } = useAuth();
   const { viewAsStudent, clearViewAsStudent } = useViewAsStudent();
   const [currentView, setCurrentView] = useState<ViewState>("dashboard");
+  const [settingsSection, setSettingsSection] = useState<SettingsSection>(null);
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [showUploadModal, setShowUploadModal] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
+
+  // Custom navigation function that supports options
+  const handleNavigate = (view: ViewState, options?: NavigationOptions) => {
+    console.log("[App] handleNavigate called", { view, options });
+    if (options?.section) {
+      console.log("[App] Setting settingsSection to:", options.section);
+      setSettingsSection(options.section);
+    }
+    setCurrentView(view);
+  };
   const isMobile = useIsMobile();
   const { processFile, isProcessing, processedData, reset } = useUploadSheet();
   const { settings: whitelabelSettings } = useWhitelabel();
   
+  console.log("[AuthenticatedApp] Renderizando - user:", user?.email, "profile:", userProfile?.email);
+  
   // Se visualizando aluno, usar ID do aluno; caso contrário, usar ID do usuário atual
   const effectiveUserId = viewAsStudent?.id || user?.id;
-  const { dashboardData, isLoading: isLoadingData, saveData, mergeData, fetchData } = useDashboardData(effectiveUserId);
+  console.log("[AuthenticatedApp] effectiveUserId:", effectiveUserId);
+  
+  const { dashboardData, isLoading: isLoadingData, error: dashboardError, saveData, mergeData, fetchData } = useDashboardData(effectiveUserId);
   const { leads, isLoading: leadsLoading } = useLeads();
+
+  console.log("[AuthenticatedApp] Dashboard state - loading:", isLoadingData, "error:", dashboardError, "hasData:", !!dashboardData);
 
   // Mostrar onboarding se não completou
   useEffect(() => {
@@ -212,31 +234,45 @@ const AuthenticatedApp = () => {
       );
     }
 
+    // Função auxiliar para parsing de mês/ano
+    const parseMonthYear = (selectedMonth?: string) => {
+      if (!selectedMonth) return { month: new Date().getMonth() + 1, year: new Date().getFullYear() };
+      const [monthStr, yearStr] = selectedMonth.split("-");
+      const monthMap: Record<string, number> = {
+        "Jan": 1, "Fev": 2, "Mar": 3, "Abr": 4, "Mai": 5, "Jun": 6,
+        "Jul": 7, "Ago": 8, "Set": 9, "Out": 10, "Nov": 11, "Dez": 12
+      };
+      const month = monthMap[monthStr] || new Date().getMonth() + 1;
+      const year = yearStr ? 2000 + parseInt(yearStr) : new Date().getFullYear();
+      return { month, year };
+    };
+
+    const monthNamesShort = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
+
     switch (currentView) {
       case "dashboard":
         return <DashboardView data={displayData} />;
       case "pipeline":
         return <PipelineView team={displayData.team} />;
       case "team":
-        return <TeamView team={displayData.team} monthlyGoal={200000} />;
+        const teamMonthYear = parseMonthYear(displayData.selectedMonth);
+        const teamMonthData = displayData.currentYearData.find(
+          d => d.month === monthNamesShort[teamMonthYear.month - 1]
+        );
+        return (
+          <TeamView 
+            team={displayData.team} 
+            monthlyGoal={teamMonthData?.goal || 200000}
+            referenceMonth={teamMonthYear.month}
+            referenceYear={teamMonthYear.year}
+            historicalData={displayData.historicalData}
+            currentYearData={displayData.currentYearData}
+          />
+        );
       case "pgv":
-        // Extrair mês/ano do último upload (ex: "Dez-25" → 12, 2025)
-        const parseMonthYear = (selectedMonth?: string) => {
-          if (!selectedMonth) return { month: new Date().getMonth() + 1, year: new Date().getFullYear() };
-          const [monthStr, yearStr] = selectedMonth.split("-");
-          const monthMap: Record<string, number> = {
-            "Jan": 1, "Fev": 2, "Mar": 3, "Abr": 4, "Mai": 5, "Jun": 6,
-            "Jul": 7, "Ago": 8, "Set": 9, "Out": 10, "Nov": 11, "Dez": 12
-          };
-          const month = monthMap[monthStr] || new Date().getMonth() + 1;
-          const year = yearStr ? 2000 + parseInt(yearStr) : new Date().getFullYear();
-          return { month, year };
-        };
-        
         const pgvMonthYear = parseMonthYear(displayData.selectedMonth);
-        const pgvMonthNames = ["Jan", "Fev", "Mar", "Abr", "Mai", "Jun", "Jul", "Ago", "Set", "Out", "Nov", "Dez"];
         const pgvMonthData = displayData.currentYearData.find(
-          d => d.month === pgvMonthNames[pgvMonthYear.month - 1]
+          d => d.month === monthNamesShort[pgvMonthYear.month - 1]
         );
         
         return (
@@ -245,6 +281,8 @@ const AuthenticatedApp = () => {
             monthlyGoal={pgvMonthData?.goal || 200000}
             referenceMonth={pgvMonthYear.month}
             referenceYear={pgvMonthYear.year}
+            historicalData={displayData.historicalData}
+            currentYearData={displayData.currentYearData}
           />
         );
       case "rmr":
@@ -277,6 +315,7 @@ const AuthenticatedApp = () => {
             team={displayData.team} 
             previousMonthRevenue={previousMonthData?.revenue || 0}
             previousMonthGoal={previousMonthData?.goal || 200000}
+            onNavigate={handleNavigate}
           />
         );
       case "fivi":
@@ -303,6 +342,8 @@ const AuthenticatedApp = () => {
         return (
           <SettingsView 
             data={displayData} 
+            focusSection={settingsSection}
+            onSectionFocused={() => setSettingsSection(null)}
             onSaveSettings={async (settingsData) => {
               return saveData({
                 appSettings: settingsData.appSettings,
@@ -322,6 +363,14 @@ const AuthenticatedApp = () => {
         return <SalesEntryView team={displayData.team} />;
       case "agency-global":
         return <AgencyGlobalView onNavigate={(view) => setCurrentView(view as ViewState)} />;
+      case "video-library":
+        return <VideoLibraryManager />;
+      case "salespeople":
+        return <SalespeopleManagement />;
+      case "goal-center":
+        return <GoalCenterSettings />;
+      case "behavioral":
+        return <BehavioralView />;
       default:
         return <DashboardView data={displayData} />;
     }
@@ -386,8 +435,71 @@ const AuthenticatedApp = () => {
   );
 };
 
+// Loading timeout screen component
+const LoadingTimeoutScreen = ({ onRetry }: { onRetry: () => void }) => (
+  <div className="h-screen w-screen bg-background flex items-center justify-center">
+    <div className="text-center space-y-4 p-6">
+      <div className="text-destructive text-xl font-semibold">
+        Carregamento demorado
+      </div>
+      <p className="text-muted-foreground max-w-md">
+        O sistema está demorando mais que o esperado. Isso pode ser causado por conexão lenta ou cache do navegador.
+      </p>
+      <div className="flex flex-col gap-2">
+        <button 
+          onClick={onRetry}
+          className="px-6 py-3 bg-primary text-primary-foreground rounded-lg hover:opacity-90 transition-opacity"
+        >
+          Tentar Novamente
+        </button>
+        <button 
+          onClick={() => {
+            try {
+              const authToken = localStorage.getItem("sb-bqoghpzvluixuddaerwk-auth-token");
+              localStorage.clear();
+              if (authToken) localStorage.setItem("sb-bqoghpzvluixuddaerwk-auth-token", authToken);
+            } catch (e) {
+              localStorage.clear();
+            }
+            window.location.reload();
+          }}
+          className="px-6 py-3 border border-border text-foreground rounded-lg hover:bg-muted transition-colors"
+        >
+          Limpar Cache e Recarregar
+        </button>
+      </div>
+    </div>
+  </div>
+);
+
 const AppContent = () => {
   const { user, loading } = useAuth();
+  const [loadingTimeout, setLoadingTimeout] = useState(false);
+
+  console.log("[AppContent] Auth state - loading:", loading, "user:", user?.email);
+  console.log("[AppContent] Browser:", typeof navigator !== 'undefined' ? navigator.userAgent : 'SSR');
+
+  // Loading timeout detection - 15 seconds max
+  useEffect(() => {
+    if (!loading) {
+      setLoadingTimeout(false);
+      return;
+    }
+
+    const timeout = setTimeout(() => {
+      if (loading) {
+        console.warn("[AppContent] Loading timeout reached after 15s");
+        setLoadingTimeout(true);
+      }
+    }, 15000);
+
+    return () => clearTimeout(timeout);
+  }, [loading]);
+
+  // Show timeout screen if loading takes too long
+  if (loadingTimeout) {
+    return <LoadingTimeoutScreen onRetry={() => window.location.reload()} />;
+  }
 
   if (loading) {
     return (
@@ -402,7 +514,9 @@ const AppContent = () => {
   return user ? (
     <ViewAsStudentProvider>
       <ClientProvider>
-        <AuthenticatedApp />
+        <ErrorBoundary>
+          <AuthenticatedApp />
+        </ErrorBoundary>
       </ClientProvider>
     </ViewAsStudentProvider>
   ) : (

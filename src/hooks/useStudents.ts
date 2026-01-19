@@ -27,6 +27,7 @@ interface UseStudentsReturn {
   error: string | null;
   inviteStudent: (email: string, consultantName?: string) => Promise<boolean>;
   removeInvite: (inviteId: string) => Promise<boolean>;
+  linkExistingStudent: (email: string) => Promise<boolean>;
   fetchStudents: () => Promise<void>;
   canInviteMore: boolean;
   planLimit: number;
@@ -252,6 +253,105 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
     }
   }, [userId, toast]);
 
+  const linkExistingStudent = useCallback(async (email: string): Promise<boolean> => {
+    if (!userId) return false;
+
+    // Verificar limite do plano
+    if (!canInviteMore) {
+      toast({
+        title: 'Limite de alunos atingido',
+        description: `Seu plano permite até ${planLimit} alunos. Faça upgrade para vincular mais.`,
+        variant: 'destructive',
+      });
+      return false;
+    }
+
+    setIsLoading(true);
+    setError(null);
+
+    try {
+      const normalizedEmail = email.toLowerCase().trim();
+
+      // Verificar se já existe vínculo para este email
+      const { data: existingInvite } = await supabase
+        .from('invites')
+        .select('id')
+        .eq('email', normalizedEmail)
+        .eq('created_by', userId)
+        .maybeSingle();
+
+      if (existingInvite) {
+        toast({
+          title: 'Aluno já vinculado',
+          description: 'Este email já está vinculado à sua conta.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      // Buscar usuário existente pelo email
+      const { data: existingProfile, error: profileError } = await supabase
+        .from('profiles')
+        .select('id, email, role')
+        .eq('email', normalizedEmail)
+        .maybeSingle();
+
+      if (profileError) throw profileError;
+
+      if (!existingProfile) {
+        toast({
+          title: 'Usuário não encontrado',
+          description: 'Não existe um usuário cadastrado com este email. Use "Convidar Aluno" para enviar um convite.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      if (existingProfile.role !== 'business_owner') {
+        toast({
+          title: 'Tipo de usuário inválido',
+          description: 'Este usuário não é um empresário e não pode ser vinculado como aluno.',
+          variant: 'destructive',
+        });
+        return false;
+      }
+
+      // Criar convite retroativo com status 'registered'
+      const { error: insertError } = await supabase
+        .from('invites')
+        .insert({
+          email: normalizedEmail,
+          created_by: userId,
+          role: 'business_owner',
+          status: 'registered',
+          registered_uid: existingProfile.id,
+          invite_token: crypto.randomUUID(),
+          expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000).toISOString(), // 1 ano
+        });
+
+      if (insertError) throw insertError;
+
+      toast({
+        title: 'Aluno vinculado!',
+        description: `${normalizedEmail} foi vinculado à sua conta com sucesso.`,
+      });
+
+      await fetchStudents();
+      return true;
+    } catch (err: any) {
+      console.error('Error linking existing student:', err);
+      setError(err.message || 'Erro ao vincular aluno');
+      toast({
+        title: 'Erro ao vincular aluno',
+        description: err.message,
+        variant: 'destructive',
+      });
+      return false;
+    } finally {
+      setIsLoading(false);
+    }
+  }, [userId, toast, fetchStudents, canInviteMore, planLimit]);
+
   useEffect(() => {
     if (userId) {
       fetchStudents();
@@ -264,6 +364,7 @@ export default function useStudents(userId: string | undefined): UseStudentsRetu
     error,
     inviteStudent,
     removeInvite,
+    linkExistingStudent,
     fetchStudents,
     canInviteMore,
     planLimit,

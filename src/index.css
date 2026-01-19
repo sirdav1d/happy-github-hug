@@ -1,11 +1,9 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
-
-
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 /* Central Inteligente Design System */
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&display=swap');
 
 @layer base {
   :root {
@@ -216,4 +214,32 @@
 
 .dark ::-webkit-scrollbar-thumb:hover {
   background: hsl(217 33% 35%);
+}
+
+/* Reduced motion preference - disable heavy animations */
+@media (prefers-reduced-motion: reduce) {
+  .animate-float-slow,
+  .animate-float-medium,
+  .animate-float-fast {
+    animation: none !important;
+  }
+}
+
+/* Firefox-specific optimizations for heavy blur effects */
+@-moz-document url-prefix() {
+  .animate-float-slow,
+  .animate-float-medium,
+  .animate-float-fast {
+    animation-duration: 20s !important;
+  }
+  
+  /* Disable backdrop-blur completely for Firefox to prevent black screen */
+  .backdrop-blur-xl,
+  .backdrop-blur-lg,
+  .backdrop-blur-md,
+  .backdrop-blur-sm,
+  .backdrop-blur {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
 }

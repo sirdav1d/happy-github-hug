@@ -1,12 +1,14 @@
-import { useState, useCallback } from "react";
+import { useState, useCallback, useMemo } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
-import { Upload, FileSpreadsheet, X, CheckCircle2, AlertCircle, Loader2, Calendar } from "lucide-react";
+import { Upload, FileSpreadsheet, X, CheckCircle2, AlertCircle, Loader2, Calendar, Download, ChevronDown, ChevronUp } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { UploadConfig } from "@/types";
+import { generateEmptyTemplate, generateNormalizedSpreadsheet, downloadBlob, analyzeProcessedData, DataAnalysis } from "@/lib/templateGenerator";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 interface UploadModalProps {
   isOpen: boolean;
@@ -53,12 +55,26 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, onFileProcess, isProces
   const [preview, setPreview] = useState<PreviewData | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [uploadStatus, setUploadStatus] = useState<"idle" | "processing" | "success" | "error">("idle");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   
   // Configurações de upload
   const [selectedMonth, setSelectedMonth] = useState<number>(new Date().getMonth() + 1);
   const [selectedYear, setSelectedYear] = useState<number>(currentYear);
   const [replaceAllData, setReplaceAllData] = useState(false);
   const [step, setStep] = useState<"config" | "upload" | "preview">("config");
+
+  // Análise dos dados processados
+  const dataAnalysis = useMemo<DataAnalysis | null>(() => {
+    if (!preview?.data) return null;
+    return analyzeProcessedData({
+      historicalData: preview.data.historicalData,
+      currentYearData: preview.data.currentYearData,
+      team: preview.data.team,
+      kpis: preview.data.kpis,
+      yearsAvailable: preview.data.yearsAvailable,
+      selectedMonth: preview.data.selectedMonth,
+    });
+  }, [preview?.data]);
 
   const acceptedFormats = [
     "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
@@ -74,11 +90,31 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, onFileProcess, isProces
     setIsDragging(false);
     setStep("config");
     setReplaceAllData(false);
+    setDetailsOpen(false);
   };
 
   const handleClose = () => {
     resetState();
     onClose();
+  };
+
+  const handleDownloadTemplate = () => {
+    const blob = generateEmptyTemplate();
+    downloadBlob(blob, "template_historico.xlsx");
+  };
+
+  const handleDownloadNormalized = () => {
+    if (!preview?.data) return;
+    const blob = generateNormalizedSpreadsheet({
+      historicalData: preview.data.historicalData,
+      currentYearData: preview.data.currentYearData,
+      team: preview.data.team,
+      kpis: preview.data.kpis,
+      yearsAvailable: preview.data.yearsAvailable,
+      selectedMonth: preview.data.selectedMonth,
+    });
+    const monthName = monthOptions[selectedMonth - 1]?.label || "";
+    downloadBlob(blob, `dados_normalizados_${monthName}_${selectedYear}.xlsx`);
   };
 
   const validateFile = (file: File): boolean => {
@@ -195,18 +231,40 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, onFileProcess, isProces
 
   return (
     <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-lg bg-card border-border">
-        <DialogHeader>
+      <DialogContent className="sm:max-w-lg bg-card border-border max-h-[90vh] flex flex-col">
+        <DialogHeader className="flex-shrink-0">
           <DialogTitle className="flex items-center gap-2 text-foreground">
             <FileSpreadsheet className="h-5 w-5 text-primary" />
             Upload de Planilha
           </DialogTitle>
         </DialogHeader>
 
-        <div className="space-y-4">
+        <div className="space-y-4 overflow-y-auto flex-1 min-h-0 pr-1">
           {/* Step 1: Configuração */}
           {step === "config" && (
             <div className="space-y-6">
+              {/* Botão de Download do Template */}
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-lg">
+                <div className="flex items-start gap-3">
+                  <Download className="h-5 w-5 text-primary mt-0.5" />
+                  <div className="flex-1">
+                    <p className="font-medium text-foreground text-sm">Precisa de um modelo?</p>
+                    <p className="text-xs text-muted-foreground mt-1">
+                      Baixe nossa planilha modelo com a estrutura correta para facilitar a importação.
+                    </p>
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="mt-2"
+                      onClick={handleDownloadTemplate}
+                    >
+                      <Download className="h-3.5 w-3.5 mr-1.5" />
+                      Baixar Template
+                    </Button>
+                  </div>
+                </div>
+              </div>
+
               <div className="p-4 bg-muted/50 rounded-lg border border-border">
                 <div className="flex items-center gap-2 mb-4">
                   <Calendar className="h-5 w-5 text-primary" />
@@ -226,7 +284,7 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, onFileProcess, isProces
                       <SelectTrigger id="month-select">
                         <SelectValue placeholder="Selecione o mês" />
                       </SelectTrigger>
-                      <SelectContent>
+                      <SelectContent className="max-h-60 overflow-y-auto">
                         {monthOptions.map((m) => (
                           <SelectItem key={m.value} value={String(m.value)}>
                             {m.label}
@@ -407,8 +465,49 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, onFileProcess, isProces
                 </Button>
               </div>
 
+              {/* Análise detalhada dos dados */}
+              {dataAnalysis && (
+                <div className="p-3 bg-muted/50 rounded-lg space-y-3">
+                  <p className="text-sm font-medium text-foreground">Dados detectados por ano:</p>
+                  <div className="grid grid-cols-2 gap-2">
+                    {dataAnalysis.yearsWithData.map(({ year, months, totalRevenue }) => (
+                      <div 
+                        key={year} 
+                        className={cn(
+                          "p-2 rounded border",
+                          months === 12 
+                            ? "bg-green-500/10 border-green-500/30" 
+                            : "bg-amber-500/10 border-amber-500/30"
+                        )}
+                      >
+                        <div className="flex items-center gap-1.5">
+                          <CheckCircle2 className={cn(
+                            "h-3.5 w-3.5",
+                            months === 12 ? "text-green-500" : "text-amber-500"
+                          )} />
+                          <span className="font-medium text-sm">{year}</span>
+                        </div>
+                        <p className="text-xs text-muted-foreground mt-1">
+                          {months} {months === 1 ? "mês" : "meses"} • R$ {(totalRevenue / 1000).toFixed(0)}k
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Warnings */}
+                  {dataAnalysis.warnings.length > 0 && (
+                    <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded">
+                      <p className="text-xs font-medium text-amber-600 mb-1">⚠️ Avisos:</p>
+                      {dataAnalysis.warnings.map((warning, idx) => (
+                        <p key={idx} className="text-xs text-amber-600/80">• {warning}</p>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
               {preview.data?.team?.length > 0 && (
-                <div className="p-3 bg-muted/50 rounded-lg">
+                <div className="p-3 bg-muted/50 rounded-lg space-y-3">
                   <p className="text-sm font-medium text-foreground mb-2">
                     Equipe detectada ({preview.data.team.length} vendedores):
                   </p>
@@ -427,24 +526,88 @@ const UploadModal = ({ isOpen, onClose, onUploadSuccess, onFileProcess, isProces
                       </span>
                     )}
                   </div>
+
+                  {/* Alerta de nomes duplicados */}
+                  {dataAnalysis?.potentialDuplicateNames && dataAnalysis.potentialDuplicateNames.length > 0 && (
+                    <div className="p-2 bg-amber-500/10 border border-amber-500/30 rounded mt-2">
+                      <p className="text-xs font-medium text-amber-600 mb-1">
+                        ⚠️ Possíveis nomes duplicados:
+                      </p>
+                      {dataAnalysis.potentialDuplicateNames.slice(0, 3).map((dup, idx) => (
+                        <p key={idx} className="text-xs text-amber-600/80">
+                          • "{dup.name1}" ↔ "{dup.name2}"
+                        </p>
+                      ))}
+                      {dataAnalysis.potentialDuplicateNames.length > 3 && (
+                        <p className="text-xs text-amber-600/80">
+                          e mais {dataAnalysis.potentialDuplicateNames.length - 3}...
+                        </p>
+                      )}
+                    </div>
+                  )}
+
+                  {/* Semanas detectadas */}
+                  {dataAnalysis?.weeksDetectedPerMonth && dataAnalysis.weeksDetectedPerMonth.length > 0 && (
+                    <div className="flex items-center gap-2 mt-2 text-xs text-muted-foreground">
+                      <span className="font-medium">Semanas com dados:</span>
+                      {dataAnalysis.weeksDetectedPerMonth.map((w, idx) => (
+                        <span key={idx} className="px-2 py-0.5 bg-primary/10 rounded">
+                          {w.month}/{w.year}: {w.weeks} semanas
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </div>
               )}
 
-              {preview.data?.yearsAvailable?.length > 0 && (
-                <div className="p-3 bg-muted/50 rounded-lg">
-                  <p className="text-sm font-medium text-foreground mb-2">Anos disponíveis:</p>
-                  <div className="flex flex-wrap gap-2">
-                    {preview.data.yearsAvailable.map((year: number) => (
-                      <span
-                        key={year}
-                        className="px-2 py-1 text-xs bg-secondary/50 text-secondary-foreground rounded"
-                      >
-                        {year}
-                      </span>
-                    ))}
+              {/* Destaque: Baixar dados normalizados - FORA do collapsible */}
+              <div className="p-3 bg-blue-500/10 border border-blue-500/30 rounded-lg">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-sm font-medium text-foreground">Conferir dados antes de importar?</p>
+                    <p className="text-xs text-muted-foreground">Baixe a planilha normalizada para revisar ou ajustar</p>
                   </div>
+                  <Button 
+                    variant="outline" 
+                    size="sm" 
+                    className="shrink-0"
+                    onClick={handleDownloadNormalized}
+                  >
+                    <Download className="h-3.5 w-3.5 mr-1.5" />
+                    Baixar
+                  </Button>
                 </div>
-              )}
+              </div>
+
+              {/* Collapsible com detalhes técnicos */}
+              <Collapsible open={detailsOpen} onOpenChange={setDetailsOpen}>
+                <CollapsibleTrigger asChild>
+                  <Button variant="ghost" size="sm" className="w-full justify-between">
+                    <span className="text-xs">Ver detalhes técnicos</span>
+                    {detailsOpen ? (
+                      <ChevronUp className="h-4 w-4" />
+                    ) : (
+                      <ChevronDown className="h-4 w-4" />
+                    )}
+                  </Button>
+                </CollapsibleTrigger>
+                <CollapsibleContent className="space-y-2 mt-2">
+                  <div className="p-3 bg-muted/30 rounded-lg text-xs space-y-2">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Total de meses com dados:</span>
+                      <span className="font-medium">{dataAnalysis?.totalMonthsWithData || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Vendedores ativos:</span>
+                      <span className="font-medium">{dataAnalysis?.activeTeamCount || 0} de {dataAnalysis?.teamCount || 0}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Abas encontradas:</span>
+                      <span className="font-medium">{preview.sheetsFound.slice(0, 3).join(", ")}{preview.sheetsFound.length > 3 ? "..." : ""}</span>
+                    </div>
+                  </div>
+                </CollapsibleContent>
+              </Collapsible>
 
               {replaceAllData && (
                 <div className="p-3 bg-destructive/10 border border-destructive/20 rounded-lg">
